@@ -1,0 +1,287 @@
+<import name="input-method" src="../../components/InputMethod/InputMethod.ux"></import>
+<!-- 设置科目页（2026-11-01 晚，v0.0.71 真机排查版）
+     目录名 pages/pill 是历史遗留（最初叫「胶囊键盘」验证页），实际功能已是「设置科目」。
+
+     【真机 11 实测反馈】页头/诊断/输入框/保存都显示，唯独键盘不出来，且不崩溃。
+     模拟器同尺寸 212×520 能出键盘 → 怀疑真机上 ime-host 的高度算不出来：
+     组件内部键盘是 position:absolute;bottom:0，父级高度为 0 或不足时键盘被排到看不见的位置。
+
+     本版做「四档容器」实验，一次安装测四个假设：点顶部数字按钮 1→2→3→4 循环。
+       h1 = 250px（原来 min-height 的值，几乎等于没高度）
+       h2 = 330px
+       h3 = 400px（接近整屏，够放全套键盘）
+       h4 = 绝对定位铺满整屏（不依赖 flex 计算，键盘一定贴在屏幕底；头部用 z-index 浮在上面）
+     哪个档位出键盘，就把那个容器写法定死。min-height 在 Vela 的 flex 子项上可能不生效，
+     所以 1-3 档全部用固定 height，4 档直接给 absolute 全屏。
+
+     两条沿用约束（与 nickname 页相反，不要「统一」掉）：
+     1. screentype 必须 "pill-shaped"
+     2. 键盘必须【立即挂载】：pill 分支延迟挂载会整块不渲染
+     nickname 页用 rect + 延迟 300ms，两者策略不同，别互相抄 -->
+
+<template>
+  <div class="page">
+    <!-- 顶部只放返回胶囊，真正水平居中。
+         之前档位按钮挤在这里，212 宽下 140+8+40=188，而 y=40 处胶囊屏可用宽度
+         只有 23~189（弧半径 106），按钮右缘被弧边切掉，热区也不到 40 -->
+    <div class="top">
+      <!-- 返回键与标题合并成一个居中胶囊按钮，整块可点返回。
+           图标用 lucide chevron-left 的 PNG 双版本（深色界面用 light 白描边，
+           浅色界面换 dark 黑描边），不用 icon font，避免手环缺字形 -->
+      <div class="hd" onclick="goBack">
+        <image class="hd-ic" src="/common/icons/chevron-left-light.png"></image>
+        <text class="hd-t">设置科目</text>
+      </div>
+    </div>
+
+    <!-- 诊断行：左侧屏宽×屏高，右侧档位切换按钮（仅真机测试期使用）。
+         这一行 y≈86，胶囊屏在这里接近满宽（可用 4~208），不会被弧边切 -->
+    <div class="irow">
+      <text class="info">{{ diag }}</text>
+      <div class="mode" onclick="nextMode">
+        <text class="mode-t">{{ mode }}</text>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="disp">
+        <text class="txt" if="{{ text.length }}">{{ text }}</text>
+        <text class="ph" if="{{ !text.length }}">输入科目</text>
+      </div>
+      <div class="ok" onclick="save">
+        <text class="ok-t">保存</text>
+      </div>
+    </div>
+
+    <div class="ime-host {{ cls }}">
+      <input-method
+        hide="{{ false }}"
+        keyboardtype="QWERTY"
+        maxlength="5"
+        vibratemode="short"
+        screentype="pill-shaped"
+        oncomplete="onChar"
+        ondelete="onDel"
+      ></input-method>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import storage from '@system.storage'
+import device from '@system.device'
+
+const probe = require('../../common/probe.js')
+
+const HEIGHTS = ['250', '330', '400', '全屏']
+
+export default {
+  data: {
+    text: '',
+    diag: '',
+    mode: 4,
+    cls: 'h4',
+    sw: 0,
+    sh: 0
+  },
+
+  onInit() {
+    probe.mark('subject', 'enter')
+    const self = this
+    storage.get({
+      key: 'cd_subject',
+      success: function (d) {
+        if (d) self.text = d
+      },
+      fail: function () {}
+    })
+  },
+
+  onReady() {
+    probe.mark('subject', 'shown')
+    const self = this
+    device.getInfo({
+      success: function (d) {
+        self.sw = d.screenWidth || 0
+        self.sh = d.screenHeight || 0
+        self.refresh()
+      },
+      fail: function () {
+        self.diag = '取屏信息失败'
+      }
+    })
+  },
+
+  refresh() {
+    this.diag = this.sw + '×' + this.sh
+  },
+
+  nextMode() {
+    this.mode = this.mode >= 4 ? 1 : this.mode + 1
+    this.cls = 'h' + this.mode
+    this.refresh()
+    probe.mark('subject', 'mode' + this.mode)
+  },
+
+  onChar(evt) {
+    const c = (evt && evt.detail && evt.detail.content) || ''
+    if (!c) return
+    this.text = (this.text + c).slice(0, 5)
+  },
+
+  onDel() {
+    this.text = this.text.length ? this.text.slice(0, this.text.length - 1) : ''
+  },
+
+  save() {
+    const self = this
+    storage.set({
+      key: 'cd_subject',
+      value: this.text || '',
+      success: function () {
+        probe.mark('subject', 'done')
+        router.back()
+      },
+      fail: function () {
+        self.text = '保存失败'
+      }
+    })
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  flex-direction: column;
+  align-items: center;
+}
+/* 顶部行：居中返回胶囊 + 右侧档位按钮。整行 flex-shrink:0，
+   否则键盘撑高后被压成 0 高，按钮会「消失」 */
+.top {
+  z-index: 10;
+  height: 40px;
+  flex-shrink: 0;
+  margin-top: 20px;
+  justify-content: center;
+  align-items: center;
+}
+.hd {
+  width: 140px;
+  height: 40px;
+  border-radius: 20px;
+  background-color: #3a3a3c;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+.hd-ic {
+  width: 20px;
+  height: 20px;
+  margin-right: 2px;
+  object-fit: contain;
+}
+.hd-t {
+  font-size: 24px;
+  color: #ffffff;
+  lines: 1;
+}
+/* 档位按钮：只在真机测试期存在，用来切换键盘容器高度 */
+.mode {
+  width: 52px;
+  height: 44px;
+  margin-left: 8px;
+  border-radius: 22px;
+  background-color: #ff9f0a;
+  justify-content: center;
+  align-items: center;
+}
+.mode-t {
+  font-size: 24px;
+  color: #ffffff;
+}
+.irow {
+  z-index: 10;
+  height: 44px;
+  flex-shrink: 0;
+  margin-top: 4px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+.info {
+  font-size: 24px;
+  color: #8e8e93;
+  lines: 1;
+}
+/* 输入框与保存并排，省下一整行高度留给键盘 */
+.row2 {
+  z-index: 10;
+  margin-top: 6px;
+  flex-shrink: 0;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+.disp {
+  width: 104px;
+  height: 40px;
+  justify-content: center;
+  align-items: center;
+  background-color: #1c1c1e;
+  border-radius: 12px;
+}
+.txt {
+  font-size: 30px;
+  color: #ffffff;
+  lines: 1;
+}
+.ph {
+  font-size: 24px;
+  color: #8e8e93;
+}
+.ok {
+  width: 72px;
+  height: 40px;
+  margin-left: 6px;
+  justify-content: center;
+  align-items: center;
+  background-color: #0a84ff;
+  border-radius: 20px;
+}
+.ok-t {
+  font-size: 24px;
+  color: #ffffff;
+}
+/* 键盘宿主：三档固定高度（真机实验）。
+   组件内部键盘是 position:absolute;bottom:0，父级必须给出确定高度，
+   之前用 flex:1 + min-height 在真机上算不出高度，键盘就被排到看不见的地方 */
+.ime-host {
+  width: 100%;
+  flex-shrink: 0;
+}
+.h1 {
+  height: 250px;
+}
+.h2 {
+  height: 330px;
+}
+.h3 {
+  height: 400px;
+}
+/* 4 档：绝对铺满整屏，键盘 bottom:0 一定贴屏幕底，不受 flex 高度计算影响 */
+.h4 {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+</style>

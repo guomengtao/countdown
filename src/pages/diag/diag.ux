@@ -1,0 +1,225 @@
+<template>
+  <scroll class="page" scroll-y="{{ true }}">
+    <text class="h1">诊断信息</text>
+    <text class="hint">截图发给开发者</text>
+
+    <text class="k">版本</text>
+    <text class="v">{{ verName }} {{ verCode }}</text>
+
+    <text class="k">机型</text>
+    <text class="v">{{ model }}</text>
+
+    <text class="k">屏幕</text>
+    <text class="v">{{ screen }}</text>
+
+    <text class="k">系统</text>
+    <text class="v">{{ osVer }}</text>
+
+    <text class="k">词库</text>
+    <text class="v">{{ dict }}</text>
+
+    <text class="k">测试结果</text>
+    <!-- 原来写成「exp-A → 键盘可用 · 已敲过」，三个问题：
+         1. → 和 · 都是 ev-six 明令禁止的符号，各白吃 0.6~1.1 个字位
+         2. 一行 168px 装不下，必然溢出
+         3. 左对齐长句，用户扫不出哪个崩了
+         改成左右两栏：左边编号、右边结论，一眼能对齐 -->
+    <div class="rrow" for="{{ rows }}">
+      <text class="rk">{{ $item.k }}</text>
+      <text class="rv" style="color: {{ $item.c }}">{{ $item.v }}</text>
+    </div>
+
+    <div class="btn" onclick="refresh">
+      <text class="btn-t">刷新</text>
+    </div>
+    <div class="btn" onclick="clearLog">
+      <text class="btn-t">清空</text>
+    </div>
+    <div class="spacer"></div>
+  </scroll>
+</template>
+
+<style>
+/* 字号只走 ev-six 四档：44 / 30 / 28 / 24（行高 60 / 40 / 38 / 34） */
+.page {
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  flex-direction: column;
+  padding-left: 12px;
+  padding-right: 12px;
+  padding-top: 10px;
+}
+
+.h1 {
+  font-size: 30px;
+  line-height: 40px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.hint {
+  font-size: 24px;
+  line-height: 34px;
+  color: #6e6e73;
+}
+
+.k {
+  font-size: 24px;
+  line-height: 34px;
+  color: #6e6e73;
+  margin-top: 6px;
+}
+
+.v {
+  font-size: 28px;
+  line-height: 38px;
+  color: #ffffff;
+  lines: 1;
+}
+
+.rrow {
+  width: 100%;
+  height: 38px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rk {
+  font-size: 28px;
+  line-height: 38px;
+  color: #ffffff;
+}
+
+.rv {
+  font-size: 24px;
+  line-height: 34px;
+  text-align: right;
+}
+
+.btn {
+  width: 176px;
+  height: 48px;
+  margin-top: 12px;
+  border-radius: 24px;
+  background-color: #1c1c1e;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-t {
+  font-size: 28px;
+  line-height: 38px;
+  color: #0a84ff;
+}
+
+.spacer {
+  height: 24px;
+}
+</style>
+
+<script>
+import device from '@system.device'
+import file from '@system.file'
+import app from '@system.app'
+const probe = require('../../common/probe.js')
+
+const VER_NAME = '0.0.1'
+const VER_CODE = 1
+const DICT_URI = '/components/InputMethod/assets/dictionary/cn.txt'
+
+export default {
+  private: {
+    verName: VER_NAME,
+    verCode: VER_CODE,
+    model: '-',
+    screen: '-',
+    osVer: '-',
+    dict: '未探测',
+    rows: []
+  },
+
+  onInit() {
+    // 版本必须从包信息读，不能写死：上一版硬编码 0.0.1，实际装的是 0.0.2，
+    // 用户截图里的版本和真实包对不上，等于让证据自相矛盾
+    try {
+      const info = app.getInfo()
+      if (info) {
+        if (info.versionName) this.verName = info.versionName
+        if (info.versionCode !== undefined) this.verCode = info.versionCode
+      }
+    } catch (e) {}
+  },
+
+  onReady() {
+    probe.mark('diag', 'shown')
+  },
+
+  onShow() {
+    this.readDevice()
+    this.readDict()
+    this.renderRows()
+  },
+
+  readDevice() {
+    const self = this
+    device.getInfo({
+      success: function (ret) {
+        // 型号里带连字符（如 Vela-Emulator）没法合并，只取 model 一段
+        self.model = ret.model || '-'
+        self.screen = (ret.screenWidth || '?') + 'x' + (ret.screenHeight || '?')
+        self.osVer = ret.osVersion || ret.version || ret.platformVersion || '-'
+      },
+      fail: function (e) {
+        self.osVer = '读取失败'
+      }
+    })
+  },
+
+  readDict() {
+    const self = this
+    file.readText({
+      uri: DICT_URI,
+      success: function (r) {
+        const n = r && r.text ? r.text.length : 0
+        // 不写脚印：读到文件 ≠ 键盘能用，混进脚印会生产一条假的"可用"
+        // 字数压成「2.9万」，原样 28658 加 OK 在 168px 里必溢出
+        self.dict = (n / 10000).toFixed(1) + '万'
+      },
+      fail: function (e, code) {
+        self.dict = '失败' + code
+      }
+    })
+  },
+
+  renderRows() {
+    // 只列实验页结论。index / diag 是宿主页，一并列出会稀释真正要看的那几行
+    const list = probe.summary()
+    const out = []
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i].page
+      if (p === 'index' || p === 'diag') continue
+      const stage = list[i].stage
+      let c = '#ffffff'
+      if (stage === 'armed' || stage === 'enter') c = '#ff453a'
+      else if (stage === 'done' || stage === 'acted') c = '#30d158'
+      else c = '#8e8e93'
+      out.push({ k: p.replace('exp-', ''), v: probe.verdict(stage), c: c })
+    }
+    if (!out.length) out.push({ k: '-', v: '无记录', c: '#5a5a5e' })
+    this.rows = out
+  },
+
+  refresh() {
+    this.readDevice()
+    this.readDict()
+    this.renderRows()
+  },
+
+  clearLog() {
+    probe.reset()
+    this.renderRows()
+  }
+}
+</script>

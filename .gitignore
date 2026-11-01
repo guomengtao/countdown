@@ -1,0 +1,14 @@
+# 依赖与构建产物
+node_modules
+# node_modules 是指向 class-schedule 的软链接，绝不能入库（含绝对路径）
+build/
+dist/
+
+# 签名私钥：绝不入库（丢了即永久失去更新能力），备份见 ~/Documents/ev-keys/
+sign/
+
+# 系统与工具产物
+.DS_Store
+*.log
+.wbapp_*.genie
+.marscode/

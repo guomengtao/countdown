@@ -1,0 +1,198 @@
+<import name="input-method" src="../../components/InputMethod/InputMethod.ux"></import>
+<!-- 昵称设置页（2026-11-01 新增，第二版）
+     目的：把真机唯一可用的「rect 全键盘」接成真实功能，验证
+           「输入 → 回传 → 落盘 → 首页显示」整条链路。
+
+     第一版三个坑（本版已全部修掉）：
+     1. 键盘根本没渲染。原因：input-method 在页面首帧直接挂载会失败（与实验页白屏同源）。
+        修法照抄实验页的成功路径 —— 先用 if 关掉，onReady 后延迟一帧再挂载。
+     2. 标题「设置昵称」折行。212 宽减去左右 padding 60 + 返回键 48 + 占位 48 只剩 56px，
+        装不下 4 个 28px 汉字。改为返回键独占一行、标题单独居中一行。
+     3. 占位文字「点键盘输入昵称」7 个字也折行。缩短为「输入昵称」4 个字。
+
+     其余硬约束（都来自真机/模拟器实测）：
+     - screentype 必须写死 "rect"：pill-shaped 在 212×520 白屏，circle 写死 480px 溢出
+     - .ime-host 必须 flex:1 且有高度：组件内部 position:absolute 贴底定位
+     - .hd 必须 flex-shrink:0：否则键盘撑高后页头被压成 0 高度
+     - 头栏 margin-top 24 / padding-left 30：避开胶囊屏左上圆角（半径≈屏宽一半）
+     - 字号只用 ev-six 四档：44 / 30 / 28 / 24 -->
+
+<template>
+  <div class="page">
+    <div class="back" onclick="goBack">
+      <text class="back-t">‹</text>
+    </div>
+
+    <text class="title">设置昵称</text>
+
+    <div class="disp">
+      <text class="txt" if="{{ text.length }}">{{ text }}</text>
+      <text class="ph" if="{{ !text.length }}">输入昵称</text>
+    </div>
+
+    <div class="ok" onclick="save">
+      <text class="ok-t">保存</text>
+    </div>
+
+    <!-- imeOn 初值 false：组件首帧挂载会失败，必须等页面壳渲染完再插入 -->
+    <div class="ime-host" if="{{ imeOn }}">
+      <input-method
+        hide="{{ false }}"
+        keyboardtype="QWERTY"
+        maxlength="8"
+        vibratemode="short"
+        screentype="rect"
+        dictionarypath="/components/InputMethod/assets/dictionary/"
+        oncomplete="onChar"
+        ondelete="onDel"
+      ></input-method>
+    </div>
+    <div class="ime-gap" if="{{ !imeOn }}"></div>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import storage from '@system.storage'
+
+export default {
+  data: {
+    text: '',
+    imeOn: false
+  },
+
+  onInit() {
+    const self = this
+    storage.get({
+      key: 'cd_nick',
+      success: function (d) {
+        if (d) self.text = d
+      },
+      fail: function () {}
+    })
+  },
+
+  onReady() {
+    const self = this
+    // 关键：延迟挂载键盘。首帧直接挂载会被静默丢弃（实验页踩过同一个坑）
+    setTimeout(function () {
+      self.imeOn = true
+    }, 300)
+  },
+
+  onChar(evt) {
+    const c = (evt && evt.detail && evt.detail.content) || ''
+    if (!c) return
+    this.text = (this.text + c).slice(0, 8)
+  },
+
+  onDel() {
+    this.text = this.text.length ? this.text.slice(0, this.text.length - 1) : ''
+  },
+
+  save() {
+    const self = this
+    storage.set({
+      key: 'cd_nick',
+      value: this.text || '',
+      success: function () {
+        router.back()
+      },
+      fail: function () {
+        self.text = '保存失败'
+      }
+    })
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  flex-direction: column;
+}
+
+.back {
+  width: 44px;
+  height: 44px;
+  margin-top: 24px;
+  margin-left: 30px;
+  align-self: flex-start;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px;
+  background-color: #3a3a3c;
+}
+
+.back-t {
+  font-size: 30px;
+  color: #ffffff;
+  line-height: 36px;
+}
+
+.title {
+  font-size: 28px;
+  line-height: 38px;
+  color: #ffffff;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.disp {
+  width: 176px;
+  height: 52px;
+  margin-top: 10px;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  background-color: #1c1c1e;
+  border-radius: 12px;
+}
+
+.txt {
+  font-size: 30px;
+  color: #ffffff;
+  lines: 1;
+}
+
+.ph {
+  font-size: 24px;
+  color: #8e8e93;
+}
+
+.ok {
+  width: 176px;
+  height: 44px;
+  margin-top: 8px;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  background-color: #0a84ff;
+  border-radius: 22px;
+}
+
+.ok-t {
+  font-size: 28px;
+  color: #ffffff;
+}
+
+.ime-host {
+  flex: 1;
+  flex-shrink: 0;
+  min-height: 250px;
+  width: 100%;
+  flex-direction: column;
+}
+
+.ime-gap {
+  flex: 1;
+  width: 100%;
+}
+</style>

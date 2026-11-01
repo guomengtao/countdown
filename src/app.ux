@@ -1,0 +1,11 @@
+<script>
+const probe = require('./common/probe.js')
+
+export default {
+  onCreate() {
+    probe.load()
+    // 只要这行能落盘，就说明包能起来 —— 用户重启后首页能读到
+    probe.mark('app', 'shown')
+  }
+}
+</script>

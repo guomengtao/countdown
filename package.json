@@ -1,0 +1,10 @@
+{
+  "name": "countdown",
+  "version": "0.0.1",
+  "private": true,
+  "description": "倒数日 · 小米手环快应用（独立版）",
+  "scripts": {
+    "release": "aiot release --enable-jsc",
+    "bump": "node scripts/bump-version.js"
+  }
+}

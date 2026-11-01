@@ -1,0 +1,172 @@
+<!-- 首页（2026-11-01 改版：从「七形态测试台」回归「真实功能」）
+     背景：手环 11 真机实测七种形态，只有 rect 全键盘能打开，其余 6 种打不开。
+          继续把七行形态名摆在首页已经没有意义 —— 用户点开只会看到白屏。
+     现在首页做两件事：显示已保存的昵称与科目，并提供两个入口去设置。
+     两个输入页分别验证两种布局：
+       - 设置昵称 → pages/nickname，screentype=rect（方键，延迟挂载）
+       - 设置科目 → pages/pill，    screentype=pill-shaped（圆键，立即挂载）
+     七形态实验页（pages/exp）保留在包里但不再从首页暴露。 -->
+<template>
+  <div class="page">
+    <text class="title">倒数日</text>
+    <text class="sub">v{{ ver }}</text>
+
+    <div class="nick-box">
+      <text class="nick" if="{{ nick }}">{{ nick }}</text>
+      <text class="nick-ph" if="{{ !nick }}">还没设置昵称</text>
+    </div>
+
+    <text class="subj" if="{{ subj }}">科目 {{ subj }}</text>
+    <text class="subj off" if="{{ !subj }}">科目未设置</text>
+
+    <!-- 主按钮给「设置科目」：当前真机测试主线，胶囊键盘能不能出就看这里 -->
+    <div class="btn primary" onclick="goPill">
+      <text class="btn-t">设置科目</text>
+    </div>
+
+    <!-- 走 rect 布局的输入页，真机已验证可用，降为次要按钮 -->
+    <div class="btn" onclick="goNick">
+      <text class="btn-t">设置昵称</text>
+    </div>
+
+    <div class="btn" onclick="goDiag">
+      <text class="btn-t">诊断信息</text>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import storage from '@system.storage'
+import app from '@system.app'
+
+export default {
+  data: {
+    ver: '0.0.1',
+    nick: '',
+    subj: ''
+  },
+
+  onInit() {
+    try {
+      const info = app.getInfo()
+      if (info && info.versionName) this.ver = info.versionName
+    } catch (e) {}
+  },
+
+  // onShow 而不是 onReady：从设置页返回时要重新读一次，否则显示的永远是旧值
+  onShow() {
+    const self = this
+    storage.get({
+      key: 'cd_nick',
+      success: function (d) {
+        self.nick = d || ''
+      },
+      fail: function () {
+        self.nick = ''
+      }
+    })
+    storage.get({
+      key: 'cd_subject',
+      success: function (d) {
+        self.subj = d || ''
+      },
+      fail: function () {
+        self.subj = ''
+      }
+    })
+  },
+
+  goNick() {
+    router.push({ uri: '/pages/nickname' })
+  },
+
+  goPill() {
+    router.push({ uri: '/pages/pill' })
+  },
+
+  goDiag() {
+    router.push({ uri: '/pages/diag' })
+  }
+}
+</script>
+
+<style>
+/* 字号只走 ev-six 四档：44 / 30 / 28 / 24（行高 60 / 40 / 38 / 34） */
+.page {
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+}
+
+.title {
+  font-size: 44px;
+  line-height: 60px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.sub {
+  font-size: 24px;
+  line-height: 34px;
+  color: #6e6e73;
+}
+
+.nick-box {
+  width: 176px;
+  height: 56px;
+  margin-top: 16px;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px;
+  background-color: #1c1c1e;
+}
+
+.nick {
+  font-size: 30px;
+  line-height: 40px;
+  color: #ffffff;
+  lines: 1;
+}
+
+.nick-ph {
+  font-size: 24px;
+  line-height: 34px;
+  color: #8e8e93;
+}
+
+.subj {
+  margin-top: 8px;
+  font-size: 24px;
+  line-height: 30px;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+.subj.off {
+  color: #8e8e93;
+}
+
+.btn {
+  width: 176px;
+  height: 48px;
+  margin-top: 10px;
+  border-radius: 24px;
+  background-color: #1c1c1e;
+  justify-content: center;
+  align-items: center;
+}
+
+.primary {
+  background-color: #0a84ff;
+  margin-top: 18px;
+}
+
+.btn-t {
+  font-size: 28px;
+  line-height: 38px;
+  color: #ffffff;
+}
+</style>
