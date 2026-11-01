@@ -1,11 +1,9 @@
-<!-- 首页（2026-11-01 改版：从「七形态测试台」回归「真实功能」）
-     背景：手环 11 真机实测七种形态，只有 rect 全键盘能打开，其余 6 种打不开。
-          继续把七行形态名摆在首页已经没有意义 —— 用户点开只会看到白屏。
-     现在首页做两件事：显示已保存的昵称与科目，并提供两个入口去设置。
-     两个输入页分别验证两种布局：
-       - 设置昵称 → pages/nickname，screentype=rect（方键，延迟挂载）
-       - 设置科目 → pages/pill，    screentype=pill-shaped（圆键，立即挂载）
-     七形态实验页（pages/exp）保留在包里但不再从首页暴露。 -->
+<!-- 首页
+     真机 11：设置科目走 pill-shaped 胶囊键盘（待验证），设置昵称走 rect 方键（已验证可用）
+     两个输入页布局策略相反，不要「统一」掉：
+       - pages/pill     screentype=pill-shaped，键盘立即挂载
+       - pages/nickname screentype=rect，延迟 300ms 挂载
+     字号只走 ev-six 四档：44/30/28/24 -->
 <template>
   <div class="page">
     <text class="title">倒数日</text>
@@ -19,12 +17,11 @@
     <text class="subj" if="{{ subj }}">科目 {{ subj }}</text>
     <text class="subj off" if="{{ !subj }}">科目未设置</text>
 
-    <!-- 主按钮给「设置科目」：当前真机测试主线，胶囊键盘能不能出就看这里 -->
+    <!-- 主按钮给「设置科目」：当前真机测试主线 -->
     <div class="btn primary" onclick="goPill">
       <text class="btn-t">设置科目</text>
     </div>
 
-    <!-- 走 rect 布局的输入页，真机已验证可用，降为次要按钮 -->
     <div class="btn" onclick="goNick">
       <text class="btn-t">设置昵称</text>
     </div>
@@ -52,10 +49,15 @@ export default {
       const info = app.getInfo()
       if (info && info.versionName) this.ver = info.versionName
     } catch (e) {}
+    this.loadAll()
   },
 
-  // onShow 而不是 onReady：从设置页返回时要重新读一次，否则显示的永远是旧值
+  // 从设置页返回时要重新读一次，否则显示的永远是旧值
   onShow() {
+    this.loadAll()
+  },
+
+  loadAll() {
     const self = this
     storage.get({
       key: 'cd_nick',

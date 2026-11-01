@@ -167,49 +167,50 @@ export default {
    否则键盘撑高后被压成 0 高，按钮会「消失」 */
 .top {
   z-index: 10;
-  height: 40px;
+  height: 48px;
   flex-shrink: 0;
-  margin-top: 20px;
+  margin-top: 18px;
   justify-content: center;
   align-items: center;
 }
+/* 热区下限按 48×48 走：手环手指点击比手机粗，40 高实测点不准 */
 .hd {
-  width: 140px;
-  height: 40px;
-  border-radius: 20px;
+  width: 160px;
+  height: 48px;
+  border-radius: 24px;
   background-color: #3a3a3c;
   flex-direction: row;
   justify-content: center;
   align-items: center;
 }
 .hd-ic {
-  width: 20px;
-  height: 20px;
-  margin-right: 2px;
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
   object-fit: contain;
 }
 .hd-t {
-  font-size: 24px;
+  font-size: 28px;
   color: #ffffff;
   lines: 1;
 }
 /* 档位按钮：只在真机测试期存在，用来切换键盘容器高度 */
 .mode {
-  width: 52px;
-  height: 44px;
-  margin-left: 8px;
-  border-radius: 22px;
+  width: 68px;
+  height: 52px;
+  margin-left: 10px;
+  border-radius: 26px;
   background-color: #ff9f0a;
   justify-content: center;
   align-items: center;
 }
 .mode-t {
-  font-size: 24px;
+  font-size: 30px;
   color: #ffffff;
 }
 .irow {
   z-index: 10;
-  height: 44px;
+  height: 52px;
   flex-shrink: 0;
   margin-top: 4px;
   flex-direction: row;
@@ -231,8 +232,8 @@ export default {
   align-items: center;
 }
 .disp {
-  width: 104px;
-  height: 40px;
+  width: 100px;
+  height: 44px;
   justify-content: center;
   align-items: center;
   background-color: #1c1c1e;
@@ -248,8 +249,8 @@ export default {
   color: #8e8e93;
 }
 .ok {
-  width: 72px;
-  height: 40px;
+  width: 76px;
+  height: 44px;
   margin-left: 6px;
   justify-content: center;
   align-items: center;
@@ -276,12 +277,17 @@ export default {
 .h3 {
   height: 400px;
 }
-/* 4 档：绝对铺满整屏，键盘 bottom:0 一定贴屏幕底，不受 flex 高度计算影响 */
+/* 4 档：从「内容下方」到底边，不再 top:0 铺满整屏。
+   踩坑（2026-11-01 真机）：原来 left/top:0 + width/height:100% 会盖住整个页面，
+   而 Vela 真机上 z-index 拦不住它，导致返回胶囊、档位按钮、输入框、保存
+   四个热区全部点不动（点到的都是这层空容器）。现在容器只占键盘那块地，
+   上方 y<180 的区域不覆盖；内部键盘 bottom:0，依旧贴屏幕底。
+   内容区实测到底 y≈154（top 20+40 / irow 4+44 / row2 6+40），留 26px 余量。 */
 .h4 {
   position: absolute;
   left: 0;
-  top: 0;
+  bottom: 0;
   width: 100%;
-  height: 100%;
+  height: 336px;
 }
 </style>
