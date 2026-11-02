@@ -31,9 +31,10 @@
           <text class="cd-group-label" style="color: {{ theme.textMuted }}">已结束</text>
         </div>
 
-        <!-- 卡片只承载「读」：标题 / 天数 / 进度 / 日期。
-             写操作（开关、编辑、删除）全在编辑页，点卡片直达。 -->
-        <div class="countdown-row" style="{{ item.cardBg }}; opacity: {{ item.enabled ? 1 : 0.5 }}; {{ item.cardBorder }}"
+        <!-- 版式 A · 标准卡（layout=card，默认）
+             卡片只承载「读」：标题 / 天数 / 进度 / 日期。写操作全在编辑页。 -->
+        <div class="countdown-row" if="{{ layout === 'card' }}"
+             style="{{ item.cardBg }}; opacity: {{ item.enabled ? 1 : 0.5 }}; {{ item.cardBorder }}"
              onclick="openForm(item.id)">
           <div class="cd-head">
             <text class="cd-title" style="color: {{ theme.text }}">{{ item.title }}</text>
@@ -55,6 +56,25 @@
           <div class="cd-bar">
             <div class="cd-bar-track" style="background-color: {{ theme.borderLight }}">
               <div class="cd-bar-fill" style="width: {{ item.fillPx }}px; {{ item.barBg }}"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 版式 B · 沉浸大数字（layout=hero）
+             竖版居中：标题在上、数字占满整卡宽度、单位在数字下、日期收尾。
+             代价是一屏只能 1.7 张，收益是「还剩几天」一眼砸进脑子。
+             与版式 A 共用同一份 decorate 字段，只是换了排布。 -->
+        <div class="hero-card" if="{{ layout === 'hero' }}"
+             style="{{ item.cardBg }}; opacity: {{ item.enabled ? 1 : 0.5 }}; {{ item.cardBorder }}"
+             onclick="openForm(item.id)">
+          <text class="hero-title" style="color: {{ theme.textSecondary }}">{{ item.title }}</text>
+          <text class="hero-num" style="color: {{ item.daysColor }}">{{ item.numText }}</text>
+          <text class="hero-unit" style="color: {{ item.daysColor }}">{{ item.heroUnit }}</text>
+          <text class="hero-date" style="color: {{ theme.textSecondary }}">{{ item.dateLine }}</text>
+          <text if="{{ item.lunarLine }}" class="hero-lunar" style="color: {{ item.lunarColor }}">{{ item.lunarLine }}</text>
+          <div class="hero-bar">
+            <div class="cd-bar-track" style="background-color: {{ theme.borderLight }}">
+              <div class="cd-bar-fill" style="width: {{ item.heroFillPx }}px; {{ item.barBg }}"></div>
             </div>
           </div>
         </div>
@@ -106,6 +126,8 @@ export default {
       deleteText: "#ff453a"
     },
     countdownList: [],
+    // 列表版式：card = 标准卡（默认） / hero = 沉浸大数字。存 storage key cd_layout
+    layout: "card",
     sortRecent: true,
     clearAllConfirm: false,
     clearTimer: null
@@ -118,13 +140,29 @@ export default {
       // 浅色主题（晨光白/暖阳米）决定色块是提亮还是压暗
       self.isLight = (themeName === "light" || themeName === "warm")
       self.iconTheme = self.isLight ? 'light' : 'dark'
+      self.loadLayout()
       self.loadList()
     })
   },
 
   onShow() {
-    // 从编辑页 / 设置页返回必须重读：否则新增、删除、换主题都不可见
+    // 从编辑页 / 设置页返回必须重读：否则新增、删除、换主题/换版式都不可见
+    this.loadLayout()
     this.loadList()
+  },
+
+  // 版式偏好：读不到（首装/脏数据）一律回落 card，不抛错
+  loadLayout() {
+    var self = this
+    storage.get({
+      key: "cd_layout",
+      success: function (v) {
+        self.layout = (v === "hero") ? "hero" : "card"
+      },
+      fail: function () {
+        self.layout = "card"
+      }
+    })
   },
 
   openForm(id) {
@@ -176,16 +214,19 @@ export default {
       if (it.status === "done") {
         it.numText = String(-d)
         it.unitText = "天前"
+        it.heroUnit = "天前"
         it.daysColor = this.theme.textMuted
         it.barBg = "background-color: " + this.theme.textMuted
       } else if (it.status === "today") {
         it.numText = "0"
         it.unitText = "今天"
+        it.heroUnit = "就是今天"
         it.daysColor = textColor
         it.barBg = "background-color: " + textColor
       } else {
         it.numText = String(d)
         it.unitText = "天"
+        it.heroUnit = "天后"
         it.daysColor = textColor
         it.barBg = "background-color: " + textColor
       }
@@ -196,6 +237,8 @@ export default {
 
       var p = countdown.progressOf(it)
       it.fillPx = Math.max(4, Math.round(144 * p))
+      // hero 卡内宽 = 192 - 2*12(页面) - 2*10(卡内边距) = 148
+      it.heroFillPx = Math.max(4, Math.round(148 * p))
       var g = it.status === "done" ? 1 : 0
       it.showDivider = (i > 0 && g !== prevGroup)
       prevGroup = g
@@ -507,6 +550,63 @@ export default {
   width: 100%;
   height: 8px;
   flex-shrink: 0;
+}
+
+/* ---- 版式 B · 沉浸大数字：整卡居中，数字 64px ----
+   卡高 = 14 + 28(标题) + 72(数字) + 24(单位) + 6 + 26(日期) + 12 = 182，
+   一屏 336px 只能放 1.7 张 —— 这是选它的代价，不是缺陷。
+   64px 「107」≈ 114px < 卡内宽 148px；四位数 152px 会超，
+   但四位数倒数日（>999 天）本来就极少，且会自然收缩不裁切。 */
+.hero-card {
+  flex-direction: column;
+  width: 100%;
+  flex-shrink: 0;
+  border-radius: 18px;
+  padding: 14px 10px 12px 10px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.hero-title {
+  font-size: 22px;
+  line-height: 28px;
+  lines: 1;
+  text-align: center;
+}
+
+.hero-num {
+  font-size: 64px;
+  line-height: 72px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.hero-unit {
+  font-size: 20px;
+  line-height: 24px;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.hero-date {
+  font-size: 20px;
+  line-height: 26px;
+  text-align: center;
+  margin-top: 8px;
+}
+
+.hero-lunar {
+  font-size: 18px;
+  line-height: 24px;
+  text-align: center;
+  margin-top: 1px;
+}
+
+.hero-bar {
+  margin-top: 10px;
+  height: 3px;
+  justify-content: center;
+  width: 100%;
 }
 
 /* 大屏（9 Pro / 10 Pro 等 rect 屏）只做增量 */

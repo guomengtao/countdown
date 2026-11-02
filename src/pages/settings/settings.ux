@@ -23,6 +23,12 @@
         <text class="it-k" style="color: {{ theme.text }}">主题</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}">{{ themeName }}</text>
       </div>
+      <!-- 列表版式：点击直接切换（只有两个值，不需要子页面）。
+           存 storage key cd_layout，cd-list 在 onShow/onInit 读取 -->
+      <div class="item" style="background-color: {{ theme.card }}" onclick="toggleLayout">
+        <text class="it-k" style="color: {{ theme.text }}">列表样式</text>
+        <text class="it-v" style="color: {{ theme.textSecondary }}">{{ layoutName }}</text>
+      </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="goNick">
         <text class="it-k" style="color: {{ theme.text }}">昵称</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ nick }}">{{ nick }}</text>
@@ -64,6 +70,8 @@ export default {
     nick: '',
     subj: '',
     themeName: '经典黑',
+    layout: 'card',
+    layoutName: '标准卡',
     theme: {}
   },
 
@@ -73,13 +81,40 @@ export default {
       if (info && info.versionName) this.ver = info.versionName
     } catch (e) {}
     this.loadTheme()
+    this.loadLayout()
     this.loadAll()
   },
 
   onShow() {
     // 从主题页返回要重读：否则条目上还显示旧主题名
     this.loadTheme()
+    this.loadLayout()
     this.loadAll()
+  },
+
+  loadLayout() {
+    const self = this
+    storage.get({
+      key: 'cd_layout',
+      success: function (v) { self.applyLayout(v) },
+      fail: function () { self.applyLayout('card') }
+    })
+  },
+
+  applyLayout(v) {
+    this.layout = (v === 'hero') ? 'hero' : 'card'
+    this.layoutName = (this.layout === 'hero') ? '大数字' : '标准卡'
+  },
+
+  toggleLayout() {
+    const self = this
+    const next = this.layout === 'hero' ? 'card' : 'hero'
+    storage.set({
+      key: 'cd_layout',
+      value: next,
+      success: function () { self.applyLayout(next) },
+      fail: function () { self.applyLayout(next) }
+    })
   },
 
   loadTheme() {
@@ -180,8 +215,9 @@ export default {
 }
 
 /* 条目行：宽 168 居中（192 屏左右各留 12）。
-   7 项 × 51 = 357，加页头 72 与版号 30 = 459 < 490，192×490 屏不出滚动条；
-   v0.3.0 加「手势」项后由 52/8 压到 46/5（原来 6 项时是 462，再加一项会溢出）。 */
+   8 项 × 48 = 384，加页头 72 与版号 30 = 486 < 490，192×490 屏不出滚动条。
+   行高演进：6 项 52/8 → 7 项(加手势) 46/5 → 8 项(加列表样式) 44/4。
+   ⚠️ 再加条目就会溢出，届时必须把 .list 换成 scroll 容器。 */
 .list {
   width: 168px;
   margin-top: 12px;
@@ -190,8 +226,8 @@ export default {
 }
 .item {
   width: 100%;
-  height: 46px;
-  margin-bottom: 5px;
+  height: 44px;
+  margin-bottom: 4px;
   padding-left: 14px;
   padding-right: 12px;
   border-radius: 14px;
