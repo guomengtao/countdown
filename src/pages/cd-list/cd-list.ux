@@ -1,81 +1,88 @@
+<!-- 首页 = 倒数日列表（manifest router.entry 指向本页）
+     2026-11-02 v0.3.0 视觉重做（iOS「倒数日 / Days Matter」风格）：
+       1) 顶部不再是可点胶囊 —— 标题只当标题，用户不会再以为「菜单」是返回；
+          设置入口改为底部常驻双按钮行（＋ 添加 / 设置），
+          彻底避开胶囊屏顶部两个圆角的裁切区（192 屏 y<60 时 x<24 会被圆角吃掉）。
+       2) 卡片版式从「标题 → 剩 N 天 → 进度 → 日期」四段压缩为
+          「标题 → 大数字 + 单位 → 细进度 → 日期·星期」，
+          天数从 26px 提到 40px 成为视觉主角 —— 这是倒数日类应用的核心信息。
+       3) 每条仍用自己颜色的淡底 + 淡描边（tint），一屏内多条目可分辨。
+-->
 <template>
   <div class="page" style="background-color: {{ theme.bg }}">
-    <!-- 页头与 pill / nickname / settings 同构：居中胶囊，图标 + 标题，整块可点返回。
-         不用课程表的「左箭头 + 居中标题」：那是深色卡片体系里的写法，
-         本应用视觉基线是纯黑 + 胶囊，混用会显得不像同一个应用。 -->
-    <!-- 0.1.1 起本页是应用首页（manifest router.entry 指向它）：
-         打开应用第一眼就是倒数日列表，不再经过菜单页。
-         所以顶栏不再是「返回」，而是「进菜单」——手势中心（左滑科目 /
-         上滑设置 / 下滑诊断 / 长按设置 / 右滑退出）仍在 pages/index，
-         从这颗胶囊进去。图标不用 chevron-left（那是返回语义，会造成误解）。 -->
+    <!-- 顶栏：居中纯文字标题。故意不可点 —— 首页没有上一页，
+         任何「看起来能返回」的元素出现在这里是误导（v0.2.1 之前是「菜单」胶囊）。 -->
     <div class="top">
-      <div class="hd" onclick="goMenu">
-        <text class="hd-t">菜单</text>
-      </div>
+      <text class="hd-title" style="color: {{ theme.text }}">倒数日</text>
     </div>
 
-    <!-- 工具栏（2026-10-21 规则 §8.4 砍内容）：原来三个元素「共N条 / 排序 / 清空」
-         加起来正好 168px 零余量，截图里「最近」和「清空」直接贴在一起。
-         现在删掉信息冗余的「共N条」（列表就在眼前，条数没有决策价值），
-         只留「排序」与「清空」两个 44px 高胶囊，中间靠 space-between 留白。
-         input[type=button] 在 Vela 里 width 不生效，故一律 div + text。 -->
+    <!-- 工具行：只有列表非空时出现。改成纯文字链接（原来是两枚 44px 胶囊），
+         iOS 风格的列表页不放常驻按钮，操作降为弱提示不抢视线。 -->
     <div class="toolbar" if="{{ countdownList.length > 0 }}">
-      <div class="toolbar-sort-btn" onclick="toggleSort" style="background-color: {{ theme.cardLight }}">
-        <text class="toolbar-sort-text" style="color: {{ theme.accent }}">{{ sortRecent ? '最近' : '名称' }}</text>
-      </div>
-      <div class="toolbar-clear" onclick="clearAll"
-           style="background-color: {{ clearAllConfirm ? theme.deleteText : theme.deleteBg }}">
-        <text class="toolbar-clear-text" style="color: {{ clearAllConfirm ? theme.text : theme.deleteText }}">{{ clearAllConfirm ? '确认' : '清空' }}</text>
-      </div>
+      <text class="toolbar-link" onclick="toggleSort" style="color: {{ theme.textSecondary }}">{{ sortRecent ? '按时间' : '按名称' }}</text>
+      <text class="toolbar-link" onclick="clearAll"
+            style="color: {{ clearAllConfirm ? theme.deleteText : theme.textMuted }}">{{ clearAllConfirm ? '再点一次清空' : '清空' }}</text>
     </div>
 
     <scroll class="list-scroll" scroll-y="{{true}}">
       <div for="{{ (idx, item) in countdownList }}" class="cd-item">
         <div class="cd-group-divider" if="{{ item.showDivider }}">
-          <div class="cd-group-line"></div>
+          <div class="cd-group-line" style="background-color: {{ theme.border }}"></div>
           <text class="cd-group-label" style="color: {{ theme.textMuted }}">已结束</text>
         </div>
+
         <!-- 卡片只承载「读」：标题 / 天数 / 进度 / 日期。
-             开关、编辑、删除一律不进列表卡：它们常驻时每张卡要多占 68px
-             （40 操作排 + 28 开关行），一屏从 3 条掉到 2 条，
-             且每个卡片都是「一坨按钮」，读起来很吵。
-             2026-10-21 二审：原来的「点卡片弹详情层再点编辑」已删 ——
-             一次点击进不了的层级就是多余层级，卡片点击直接进编辑页，
-             删除与「首页显示」开关都在编辑页里，弹层的存在只为多一层。
-             底色/描边/天数/进度条全部取用户选的颜色（item 级），
-             让「生日」「考试」「出行」在列表里一眼分得开。 -->
+             写操作（开关、编辑、删除）全在编辑页，点卡片直达。 -->
         <div class="countdown-row" style="{{ item.cardBg }}; opacity: {{ item.enabled ? 1 : 0.5 }}; {{ item.cardBorder }}"
              onclick="openForm(item.id)">
           <div class="cd-head">
             <text class="cd-title" style="color: {{ theme.text }}">{{ item.title }}</text>
             <text if="{{ !item.enabled }}" class="cd-off-tag" style="color: {{ theme.textMuted }}">已关闭</text>
           </div>
-          <div class="cd-summary">
-            <text if="{{ item.status === 'today' }}" class="cd-today-badge">今天</text>
-            <text class="cd-days" style="color: {{ item.daysColor }}">{{ item.daysText }}</text>
+
+          <!-- 天数行：大数字 + 小单位，基线对齐（unit 用 margin-bottom 微调，
+               Vela 的 align-items:flex-end 在不同固件上表现不一致） -->
+          <div class="cd-days-row">
+            <text class="cd-days" style="color: {{ item.daysColor }}">{{ item.numText }}</text>
+            <text class="cd-unit" style="color: {{ item.daysColor }}">{{ item.unitText }}</text>
           </div>
+
+          <text class="cd-date" style="color: {{ theme.textSecondary }}">{{ item.dateLine }}</text>
+          <text if="{{ item.lunarLine }}" class="cd-lunar" style="color: {{ item.lunarColor }}">{{ item.lunarLine }}</text>
+
+          <!-- 进度做成卡片底部的细彩条（3px）：iOS 倒数日首页没有进度条，
+               但完全去掉就少了一条「时间在走」的视觉暗示，压到 3px 只做质感 -->
           <div class="cd-bar">
             <div class="cd-bar-track" style="background-color: {{ theme.borderLight }}">
               <div class="cd-bar-fill" style="width: {{ item.fillPx }}px; {{ item.barBg }}"></div>
             </div>
           </div>
-          <text class="cd-date" style="color: {{ theme.textSecondary }}">{{ item.dateDisplay }}</text>
-          <!-- 当年用农历录入的条目，多给一行农历：生日/中秋这类日期
-               用户脑子里存的是「八月十五」，不是 2026-09-25 -->
-          <text if="{{ item.lunarLine }}" class="cd-lunar" style="color: {{ item.lunarColor }}">{{ item.lunarLine }}</text>
         </div>
       </div>
-      <text if="{{ countdownList.length === 0 }}" class="empty-text" style="color: {{ theme.textMuted }}">暂无倒数日</text>
-      <div class="add-row-btn" onclick="startAdd" style="background-color: {{ theme.accent }}">
-        <text class="btn-label" style="color: {{ theme.bg }}">+ 添加倒数日</text>
-      </div>
+
+      <text if="{{ countdownList.length === 0 }}" class="empty-text" style="color: {{ theme.textMuted }}">还没有倒数日</text>
+      <text if="{{ countdownList.length === 0 }}" class="empty-sub" style="color: {{ theme.textMuted }}">点下方按钮添加一个</text>
+      <div class="list-pad" if="{{ countdownList.length > 0 }}"></div>
     </scroll>
+
+    <!-- 底部常驻操作行（v0.3.0 新增）：
+         192 屏内容宽 168 = 主按钮 96 + 间隔 8 + 设置 64。
+         这一行是所有页面唯一稳定的「低风险热区」——屏幕底部中间，
+         圆角裁切不到、也不会和列表滚动抢手势。 -->
+    <div class="actions">
+      <div class="act-add" onclick="startAdd" style="background-color: {{ theme.accent }}">
+        <text class="act-add-t" style="color: {{ theme.bg }}">{{ countdownList.length > 0 ? '＋ 添加' : '＋ 添加倒数日' }}</text>
+      </div>
+      <div class="act-set" onclick="goSettings" style="background-color: {{ theme.cardLight }}">
+        <text class="act-set-t" style="color: {{ theme.text }}">设置</text>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import router from "@system.router"
-var storage = require("@system.storage")
+import storage from "@system.storage"
 const countdown = require("../../data/countdown.js")
 const theme = require("../../data/theme.js")
 
@@ -106,26 +113,20 @@ export default {
 
   onInit() {
     var self = this
-    // 主题必须先读：色块的淡底与文字提亮/压暗都按深浅主题算
     theme.getTheme(function(t, themeName) {
       self.theme = t
-      self.isLight = false   // 本应用只有深色一套主题
+      // 浅色主题（晨光白/暖阳米）决定色块是提亮还是压暗
+      self.isLight = (themeName === "light" || themeName === "warm")
       self.iconTheme = self.isLight ? 'light' : 'dark'
       self.loadList()
     })
   },
 
   onShow() {
-    // 2026-10-21：从 countdown-edit 表单页返回后必须重读数据，否则新增/编辑不可见。
-    // 原来的 drainName/drainDate（旧三段式接力的返回键消费）已删：
-    // flowStep 恒为 idle，它们只是每次进页白跑两次 storage.get。
+    // 从编辑页 / 设置页返回必须重读：否则新增、删除、换主题都不可见
     this.loadList()
   },
 
-  // 2026-10-21 改版：添加/编辑统一进 countdown-edit 表单页（进入即表单，0 跳转）。
-  // 列表卡片的点击直接走这里（不再经过详情弹层）。
-  // 旧的「chinese-input → countdown-date」三段式接力（flowStep 状态机 + 5 个 storage 键）
-  // 已整体删除：任一步返回都会丢数据，且用户感知为「点了没反应」。
   openForm(id) {
     var uri = "/pages/cd-edit"
     var go = function() { router.push({ uri: uri }) }
@@ -141,20 +142,25 @@ export default {
     this.openForm("")
   },
 
-  // 列表只读，重排/重算后不再需要回调定位 —— 弹层的「原地保持下标」随着
-  // 弹层一起删了（曾用 cb 把重排后的新下标回填给 detailIdx）
   loadList() {
     var self = this
-    countdown.load(function(res) {
-      var items = res.items
-      countdown.recompute(items)
-      countdown.sortForDisplay(items, self.sortRecent ? "recent" : "name")
-      self.decorate(items)
-      self.countdownList = items
+    // 主题也在这里刷新：设置页换完主题返回，列表页底色必须立刻跟着变
+    theme.getTheme(function(t, themeName) {
+      self.theme = t
+      self.isLight = (themeName === "light" || themeName === "warm")
+      countdown.load(function(res) {
+        var items = res.items
+        countdown.recompute(items)
+        countdown.sortForDisplay(items, self.sortRecent ? "recent" : "name")
+        self.decorate(items)
+        self.countdownList = items
+      })
     })
   },
 
-  // 为排序后的列表逐条附展示字段：状态/文字/颜色/进度条填充/分组分隔/高亮
+  // 为排序后的列表逐条附展示字段。
+  // 卡片内可用宽度：192 - 2*12(页面) - 2*12(卡片内边距) = 144px，
+  // 所有定量都按这个常数算（进度条 144、日期行 144）。
   decorate(items) {
     var prevGroup = -1
     var light = this.isLight
@@ -162,31 +168,45 @@ export default {
       var it = items[i]
       it.status = countdown.statusOf(it)
       var d = it.daysLeft
-      // 色块三件套：底（低透明淡色）+ 描边 + 文字，全部由 item 颜色派生。
-      // 不直接拿 hex 当文字色：中间调在深色主题上发灰、在浅色主题上发白，
-      // adaptColor 按主题提亮/压暗 32%，两种主题都能当天数色用（2026-10-21）
       var hex = countdown.colorOf(it)
       var textColor = countdown.adaptColor(hex, light)
       it.cardBg = "background-color: " + countdown.tintColor(hex, light ? 0.13 : 0.18)
-      it.cardBorder = "border: 1px solid " + countdown.tintColor(hex, light ? 0.5 : 0.62)
+      it.cardBorder = "border: 1px solid " + countdown.tintColor(hex, light ? 0.45 : 0.55)
+
       if (it.status === "done") {
-        it.daysText = "已过 " + (-d) + " 天"
+        it.numText = String(-d)
+        it.unitText = "天前"
         it.daysColor = this.theme.textMuted
         it.barBg = "background-color: " + this.theme.textMuted
+      } else if (it.status === "today") {
+        it.numText = "0"
+        it.unitText = "今天"
+        it.daysColor = textColor
+        it.barBg = "background-color: " + textColor
       } else {
-        it.daysText = it.status === "today" ? "剩 0 天" : "剩 " + d + " 天"
+        it.numText = String(d)
+        it.unitText = "天"
         it.daysColor = textColor
         it.barBg = "background-color: " + textColor
       }
-      // 农历行：只有当初用农历录入的条目才有；已结束的条目跟着天数一起褪色
+
+      it.dateLine = this.dateLine(it.date)
       it.lunarLine = (it.cal === "lunar" && it.lunarText) ? ("农历" + it.lunarText) : ""
       it.lunarColor = it.status === "done" ? this.theme.textMuted : textColor
+
       var p = countdown.progressOf(it)
-      it.fillPx = Math.max(6, Math.round(146 * p))
+      it.fillPx = Math.max(4, Math.round(144 * p))
       var g = it.status === "done" ? 1 : 0
       it.showDivider = (i > 0 && g !== prevGroup)
       prevGroup = g
     }
+  },
+
+  // 日期行只给 date 本体。曾试过拼「周X」，18px 下 "2027-02-17 周三" 实测
+  // 149px > 卡片内宽 144px 直接折行（版面还原图实证），20px 更宽。
+  // 星期对「还剩几天」没有决策价值，砍掉换回一行的整齐。
+  dateLine(s) {
+    return String(s || "")
   },
 
   persistList(list) {
@@ -219,11 +239,16 @@ export default {
     }, 3000)
   },
 
-  // 首页没有上一页，router.back() 无栈可退 —— 直接推菜单页
-  goMenu() {
+  // 首页没有上一页，router.back() 无栈可退 —— 直接推设置页
+  goSettings() {
     try {
-      router.push({ uri: '/pages/index' })
+      router.push({ uri: '/pages/settings' })
     } catch (e) {}
+  },
+
+  // 兼容旧模板里可能残留的 goMenu 调用
+  goMenu() {
+    this.goSettings()
   },
 
   onDestroy() {
@@ -240,119 +265,56 @@ export default {
 <style>
 
 /* ================================================================
-   BASE CSS = 手环 9 基准（192 屏 / 内容区 168px）
+   BASE CSS = 手环 9 基准（192 屏 / 内容区 168px，卡片内宽 144px）
    手环 9 默认命中，不依赖任何 media query。
-   依据 add-course.ux 铁律：独立 @media (shape: pill-shaped) 大块命中即崩，
-   故 base 以 9 为基准、彻底移除 pill-shaped 分支；大屏只在 rect 断点做增量。
-   所有文案按「不被截断」定量：标题整行独占、天数独立一行、日期与开关同行。
+   大屏（rect）只在文件末尾做增量，不覆盖 base 字号体系。
+   布局数字（v0.3.0 实算，192×490 屏幕）：
+     顶栏    48 + 上边距 14            = 62
+     工具行  26 + 下边距 8             = 34
+     底部行  44 + 上下边距 14          = 58
+     列表可视 490 - 62 - 34 - 58       = 336  → 一屏 3 张卡（每张约 118 含间距）
    ================================================================ */
-
-/* 头部：胶囊屏只有一行、横向极窄（192 − 24 留白 = 168）。
-   铁律：头部只放「返回 + 标题」，任何操作按钮一律不准进头部（见
-   docs/胶囊屏UI规范与模拟器快速迭代-20261018.md）。新增入口下沉到列表底部整行按钮。 */
-.top {
-  height: 48px;
-  flex-shrink: 0;
-  margin-top: 12px;
-  justify-content: center;
-  align-items: center;
-}
-
-.hd {
-  width: 160px;
-  height: 48px;
-  border-radius: 24px;
-  background-color: #3a3a3c;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-}
-
-.hd-ic {
-  width: 22px;
-  height: 22px;
-  margin-right: 4px;
-  object-fit: contain;
-}
-
-.hd-t {
-  font-size: 28px;
-  color: #ffffff;
-  lines: 1;
-}
-
 
 .page {
   flex: 1;
   flex-direction: column;
-  padding: 8px 12px 20px 12px;
+  padding: 0 12px;
 }
 
-/* 新增入口：列表底部整行按钮（头部禁放按钮后的唯一入口），热区 168×44 */
-.add-row-btn {
-  width: 168px;
-  height: 44px;
-  border-radius: 22px;
+/* 顶栏：居中纯文字标题，不做胶囊、不可点 */
+.top {
+  height: 48px;
+  flex-shrink: 0;
+  margin-top: 14px;
   justify-content: center;
   align-items: center;
-  margin: 12px 0 16px 0;
-  flex-shrink: 0;
 }
 
+.hd-title {
+  font-size: 30px;
+  line-height: 40px;
+  font-weight: bold;
+  lines: 1;
+}
+
+/* 工具行：两端小字，弱到不抢卡片视线 */
 .toolbar {
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 0 2px;
-  margin-bottom: 10px;
+  height: 26px;
+  padding: 0 4px;
+  margin-top: 8px;
+  margin-bottom: 8px;
   flex-shrink: 0;
 }
 
-.toolbar-count {
+.toolbar-link {
   font-size: 20px;
   line-height: 26px;
+  lines: 1;
   flex-shrink: 0;
-}
-
-.toolbar-sort {
-  font-size: 20px;
-  line-height: 26px;
-  flex-shrink: 0;
-  margin-left: 6px;
-}
-
-/* 排序：44 高胶囊，整块可点（原来是一行纯文字，热区只有字形那么大） */
-.toolbar-sort-btn {
-  height: 44px;
-  min-width: 76px;
-  border-radius: 22px;
-  justify-content: center;
-  align-items: center;
-  padding: 0 12px;
-}
-
-.toolbar-sort-text {
-  font-size: 20px;
-  line-height: 26px;
-  text-align: center;
-}
-
-/* 清空：48x30 → 44 高；危险操作，与排序之间靠 space-between 拉开 */
-.toolbar-clear {
-  height: 44px;
-  min-width: 80px;
-  border-radius: 22px;
-  justify-content: center;
-  align-items: center;
-  padding: 0 12px;
-  flex-shrink: 0;
-}
-
-.toolbar-clear-text {
-  font-size: 20px;
-  line-height: 26px;
-  text-align: center;
 }
 
 .list-scroll {
@@ -361,20 +323,20 @@ export default {
   width: 100%;
 }
 
-/* 列表项必须显式撑满：Vela 里 div 宽度默认随内容收缩，
-   否则短标题卡片（如「运动会」）会被压窄，天数与日期随之换行/截断 */
+/* 列表项必须显式撑满：Vela 的 div 宽度默认随内容收缩 */
 .cd-item {
   width: 100%;
   flex-direction: column;
 }
 
+/* 卡片：圆角 16 + 12px 内边距（144 内宽）。底色与描边由条目色派生（见 decorate） */
 .countdown-row {
   flex-direction: column;
   width: 100%;
   flex-shrink: 0;
-  border-radius: 12px;
-  padding: 8px 8px;
-  margin-bottom: 10px;
+  border-radius: 16px;
+  padding: 10px 12px 12px 12px;
+  margin-bottom: 8px;
 }
 
 .cd-head {
@@ -384,7 +346,7 @@ export default {
   flex-shrink: 0;
 }
 
-/* 标题独占整行，且不设 lines —— 长标题自然换行，绝不出现省略号或被裁切 */
+/* 标题独占整行，不设 lines —— 长标题自然换行，绝不省略号或被裁切 */
 .cd-title {
   font-size: 24px;
   line-height: 30px;
@@ -392,57 +354,49 @@ export default {
   min-width: 0;
 }
 
-.cd-summary {
+/* 天数行：卡片的主角。40px 粗体数字 + 20px 单位。
+   三位数「365」≈ 72px + 「天」20px = 92px，144 内宽放得下 */
+.cd-days-row {
   flex-direction: row;
-  align-items: center;
+  align-items: flex-end;
   width: 100%;
   flex-shrink: 0;
   margin-top: 2px;
 }
 
-.cd-today-badge {
-  font-size: 18px;
-  line-height: 22px;
-  color: #ffffff;
-  background-color: #ff7a45;
-  border-radius: 6px;
-  padding: 0 6px;
-  margin-right: 6px;
-  flex-shrink: 0;
-}
-
 .cd-days {
-  font-size: 26px;
-  line-height: 32px;
+  font-size: 36px;
+  line-height: 42px;
   font-weight: bold;
-  flex: 1;          /* 把 › 推到行尾；长天数文案自己收缩，不与箭头抢空间 */
-  min-width: 0;
+  flex-shrink: 0;
 }
 
-/* 「可点开」的唯一视觉暗示。不做整卡箭头图标：192 屏上加图标会挤掉天数 */
-.cd-more {
-  font-size: 24px;
-  line-height: 32px;
-  flex-shrink: 0;
+.cd-unit {
+  font-size: 20px;
+  line-height: 26px;
   margin-left: 4px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .cd-bar {
-  margin-top: 4px;
-  height: 10px;
+  margin-top: 8px;
+  height: 3px;
   justify-content: center;
   width: 100%;
+  flex-shrink: 0;
 }
 
 .cd-bar-track {
   width: 100%;
-  height: 6px;
-  border-radius: 3px;
+  height: 3px;
+  border-radius: 2px;
+  opacity: 0.5;
 }
 
 .cd-bar-fill {
-  height: 6px;
-  border-radius: 3px;
+  height: 3px;
+  border-radius: 2px;
 }
 
 .cd-date {
@@ -450,19 +404,18 @@ export default {
   line-height: 26px;
   width: 100%;
   margin-top: 4px;
+  lines: 1;
 }
 
-/* 农历行：与公历日期同号同位置，只靠颜色区分主次。
-   20px 下「农历八月十五」= 120px，内容区 152px，放得下不换行 */
+/* 农历行：与公历同号同色系，只靠颜色区分主次 */
 .cd-lunar {
   font-size: 20px;
   line-height: 26px;
   width: 100%;
   margin-top: 1px;
+  lines: 1;
 }
 
-/* 已关闭的卡片只留一行弱提示（整卡同时降到 0.5 透明度）——
-   ON/OFF 开关本身在编辑页，列表页不承载任何写操作 */
 .cd-off-tag {
   font-size: 18px;
   line-height: 30px;
@@ -474,13 +427,13 @@ export default {
   flex-direction: row;
   align-items: center;
   width: 100%;
-  margin: 2px 2px 6px 2px;
+  margin: 2px 2px 8px 2px;
 }
 
 .cd-group-line {
   flex: 1;
   height: 2px;
-  background-color: rgba(136, 136, 153, 0.25);
+  opacity: 0.5;
 }
 
 .cd-group-label {
@@ -490,31 +443,82 @@ export default {
   flex-shrink: 0;
 }
 
-.btn-label {
-  font-size: 20px;
-  line-height: 24px;
+/* 底部常驻行：主按钮 96 + 间隔 8 + 设置 64 = 168 */
+.actions {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 6px;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.act-add {
+  height: 44px;
+  flex: 1;
+  border-radius: 22px;
+  justify-content: center;
+  align-items: center;
+}
+
+.act-add-t {
+  font-size: 22px;
+  line-height: 28px;
   text-align: center;
+  lines: 1;
+}
+
+.act-set {
+  width: 64px;
+  height: 44px;
+  border-radius: 22px;
+  justify-content: center;
+  align-items: center;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.act-set-t {
+  font-size: 22px;
+  line-height: 28px;
+  text-align: center;
+  lines: 1;
 }
 
 .empty-text {
+  font-size: 24px;
+  line-height: 32px;
+  text-align: center;
+  width: 100%;
+  margin-top: 56px;
+}
+
+.empty-sub {
   font-size: 20px;
   line-height: 28px;
   text-align: center;
   width: 100%;
-  margin-top: 40px;
+  margin-top: 2px;
 }
 
-/* 大屏（9 Pro / 10 Pro 336×480 等 rect 屏）只做增量：留白与按钮放大，
-   不覆盖 base 的字号体系，保证同一套文案在两种屏上都不被截断 */
+/* 列表底部留白：让最后一张卡不贴着常驻按钮行 */
+.list-pad {
+  width: 100%;
+  height: 8px;
+  flex-shrink: 0;
+}
+
+/* 大屏（9 Pro / 10 Pro 等 rect 屏）只做增量 */
 @media (shape: rect) {
   .page {
-    padding: 24px 20px 20px 20px;
+    padding: 0 20px;
   }
-
-  .add-row-btn {
-    width: 296px;
-    height: 48px;
-    border-radius: 24px;
+  .countdown-row {
+    padding: 14px;
+  }
+  .actions {
+    margin-bottom: 18px;
   }
 }
 </style>

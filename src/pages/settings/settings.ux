@@ -33,6 +33,11 @@
         <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ subj }}">{{ subj }}</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ !subj }}">未设置</text>
       </div>
+      <!-- 手势页入口：v0.3.0 首页顶部不再是可点胶囊，手势中心从这里进 -->
+      <div class="item" style="background-color: {{ theme.card }}" onclick="goGesture">
+        <text class="it-k" style="color: {{ theme.text }}">手势</text>
+        <text class="it-v">打开</text>
+      </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="goDiag">
         <text class="it-k" style="color: {{ theme.text }}">诊断</text>
         <text class="it-v">打开</text>
@@ -124,6 +129,9 @@ export default {
   goPill() {
     router.push({ uri: '/pages/pill' })
   },
+  goGesture() {
+    router.push({ uri: '/pages/index' })
+  },
   goDiag() {
     router.push({ uri: '/pages/diag' })
   },
@@ -180,8 +188,8 @@ export default {
 }
 .item {
   width: 100%;
-  height: 52px;
-  margin-bottom: 8px;
+  height: 48px;
+  margin-bottom: 6px;
   padding-left: 14px;
   padding-right: 12px;
   border-radius: 14px;
