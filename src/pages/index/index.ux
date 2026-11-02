@@ -17,7 +17,7 @@
     <text class="subj" if="{{ subj }}">科目 {{ subj }}</text>
     <text class="subj off" if="{{ !subj }}">科目未设置</text>
 
-    <text class="hint">右划进入科目</text>
+    <text class="hint">左滑进入科目</text>
 
     <!-- 主按钮给「设置科目」：当前真机测试主线 -->
     <div class="btn primary" onclick="goPill">
@@ -89,14 +89,14 @@ export default {
     router.push({ uri: '/pages/nickname' })
   },
 
-  // 首页右划 = 进入「设置科目」。
-  // 注意：左滑是系统官方的「退出」手势，绝不能占用（占了会导致退出失败），
-  // 所以这里只用右划，且必须保证右划不会反过来卡住系统手势。
+  // 首页左滑 = 进入「设置科目」。
+  // 注意：「右划」是系统官方的退出/返回手势，绝不能占用（占了会导致退出失败）；
+  // 所以进入设置科目只用「左滑」，并且右划必须原样留给系统，本页不拦。
   // 双通道：优先用 Vela 的 onswipe（部分平台/版本不派发），
   // 再兜一层 touch 起止坐标判定，两个通道都命中时用 navAt 去重，避免连开两页。
   onSwipe(evt) {
     const dir = (evt && evt.direction) || ''
-    if (dir === 'right') this.goPillOnce()
+    if (dir === 'left') this.goPillOnce()
   },
 
   onTs(evt) {
@@ -112,7 +112,7 @@ export default {
     const dx = (t.clientX || t.x || 0) - this.tx
     const dy = Math.abs((t.clientY || t.y || 0) - this.ty)
     const dt = Date.now() - this.tt
-    if (dx > 60 && dy < 60 && dt < 800) this.goPillOnce()
+    if (dx < -60 && dy < 60 && dt < 800) this.goPillOnce()
   },
 
   goPillOnce() {
