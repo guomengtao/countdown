@@ -12,6 +12,11 @@
        松手且位移仍够才进入（用户明确要求：滑一半停住要有反应，
        滑完再提示没意义）。 -->
   <div class="page" ontouchstart="onTouchStart" ontouchmove="onTouchMove" ontouchend="onTouchEnd" ontouchcancel="onTouchEnd">
+    <!-- v0.0.116：主页与弹窗「互斥渲染」而非叠层。
+         Vela 上 flex 容器里混 position:absolute 子元素 = 整页黑屏（v0.0.110 实证），
+         所以弹窗走 if 切换：sheet 为真时 home 整块不渲染，两者占同一块空间，
+         视觉上就是一张全屏卡片盖住了首页（黑色背景一致，看不出是切换）。 -->
+    <div class="home" if="{{ !sheet }}">
     <!-- 触摸由 .page 根节点统一接管（见 script 里 onTouchStart 注释）。
          这里的 onswipe 保留为兜底通道，逐块挂是因为 Vela 的 swipe 不冒泡 -->
     <div class="mid" onswipe="onSwipe">
@@ -38,7 +43,7 @@
       <div class="hint">
         <image class="hint-ic" src="/common/icons/chevron-left-light.png" if="{{ !swiped }}"></image>
         <text class="hint-t" if="{{ !swiped }}">左滑进入科目</text>
-        <text class="hint-t on" if="{{ swiped }}">正在进入科目</text>
+        <text class="hint-t on" if="{{ swiped }}">松开进入科目</text>
       </div>
     </div>
 
@@ -61,6 +66,47 @@
         <text class="btn-t">退出</text>
       </div>
     </div>
+    </div><!-- /home -->
+
+    <!-- 弹窗：滑了但没滑到、松手放弃时出现。
+         用户明确要求「可以看也可以不看」→ 不自动进入，给「进入 / 知道了」两个出口，
+         外加 5 秒倒计时自动关（数字每秒刷新一次，低频 setData 安全）。
+         不做 absolute、不遮罩、不动画 —— 全屏黑底 + 居中卡片就是弹窗观感。 -->
+    <div class="sheet" if="{{ sheet }}">
+      <div class="card">
+        <div class="card-top">
+          <image class="card-ic" src="/common/icons/chevron-left-light.png"></image>
+          <text class="card-k">左滑</text>
+        </div>
+        <text class="card-title">进入 设置科目</text>
+
+        <div class="sep"></div>
+
+        <text class="card-h">手势一览</text>
+        <div class="row">
+          <text class="row-l">左滑</text>
+          <text class="row-r">进入设置科目</text>
+        </div>
+        <div class="row">
+          <text class="row-l">右滑</text>
+          <text class="row-r">退出应用</text>
+        </div>
+        <div class="row">
+          <text class="row-l">点按钮</text>
+          <text class="row-r">对应操作</text>
+        </div>
+
+        <div class="card-brow">
+          <div class="cbtn go" onclick="goPillFromSheet">
+            <text class="cbtn-t">进入</text>
+          </div>
+          <div class="cbtn" onclick="closeSheet">
+            <text class="cbtn-t">知道了</text>
+          </div>
+        </div>
+        <text class="card-cd">{{ left }} 秒后自动关闭</text>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -80,7 +126,10 @@ export default {
     navAt: 0,
     lx: 0,
     armed: false,
-    swiped: false
+    swiped: false,
+    sheet: false,
+    left: 5,
+    timer: null
   },
 
   onInit() {
@@ -94,6 +143,7 @@ export default {
   // 从设置页返回时要重新读一次，否则显示的永远是旧值
   onShow() {
     this.swiped = false
+    this.closeSheet()
     this.loadAll()
   },
 
@@ -170,16 +220,50 @@ export default {
       return
     }
 
-    // 松手时位移仍够才算数：滑到一半放弃 → 只把颜色复位，不跳页
+    // 松手时位移仍够 → 直接进入（不多弹一层，避免「滑完还要再点一次」）
     if (armed && dx <= -30) {
       const self = this
       setTimeout(function () {
         self.swiped = false
         self.enterPill()
-      }, 120)
-    } else {
-      this.swiped = false
+      }, 100)
+      return
     }
+
+    // 滑了但放弃 / 没滑够 → 弹窗解释这条手势通向哪，可以看也可以不看
+    if (armed) {
+      this.openSheet()
+      return
+    }
+
+    this.swiped = false
+  },
+
+  // 弹窗：不自动进入，5 秒倒计时后自己关。数字每秒刷一次（低频，安全）
+  openSheet() {
+    if (this.sheet) return
+    this.sheet = true
+    this.left = 5
+    const self = this
+    if (this.timer) clearInterval(this.timer)
+    this.timer = setInterval(function () {
+      self.left = self.left - 1
+      if (self.left <= 0) self.closeSheet()
+    }, 1000)
+  },
+
+  closeSheet() {
+    if (this.timer) {
+      clearInterval(this.timer)
+      this.timer = null
+    }
+    this.sheet = false
+    this.swiped = false
+  },
+
+  goPillFromSheet() {
+    this.closeSheet()
+    this.enterPill()
   },
 
   // 震动：函数内 require（顶层 import 在某镜像上会把整页带崩，见 class-schedule 踩坑）
@@ -235,6 +319,13 @@ export default {
   width: 100%;
   height: 100%;
   background-color: #000000;
+  flex-direction: column;
+}
+/* 主页：原来挂在 .page 上的布局全部挪进来。
+   .page 退成纯容器，是为了让弹窗和主页做「互斥渲染」时不互相挤压 */
+.home {
+  width: 100%;
+  height: 100%;
   flex-direction: column;
   align-items: center;
   padding-top: 10px;
@@ -356,6 +447,119 @@ export default {
 .quit {
   margin-left: 8px;
   background-color: #3a3a3c;
+}
+
+/* ── 弹窗 ────────────────────────────────────────────────
+   没有 absolute、没有遮罩层、没有动画。
+   全屏黑底 + 居中圆角卡片，靠 if 切换达成「盖住首页」的观感。
+   192px 宽的屏上卡片取 176，左右各留 8px 呼吸。 */
+.sheet {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #000000;
+}
+
+.card {
+  width: 176px;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 14px;
+  padding-bottom: 6px;
+  border-radius: 20px;
+  background-color: #1c1c1e;
+}
+
+.card-top {
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+.card-ic {
+  width: 22px;
+  height: 22px;
+  opacity: 0.7;
+}
+.card-k {
+  margin-left: 2px;
+  font-size: 24px;
+  line-height: 30px;
+  color: #8e8e93;
+}
+.card-title {
+  margin-top: 2px;
+  font-size: 30px;
+  line-height: 40px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.sep {
+  width: 148px;
+  height: 1px;
+  margin-top: 10px;
+  margin-bottom: 8px;
+  background-color: #3a3a3c;
+}
+
+.card-h {
+  font-size: 24px;
+  line-height: 30px;
+  color: #6e6e73;
+  flex-shrink: 0;
+}
+.row {
+  width: 148px;
+  margin-top: 6px;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+.row-l {
+  font-size: 24px;
+  line-height: 30px;
+  color: #8e8e93;
+}
+.row-r {
+  font-size: 24px;
+  line-height: 30px;
+  color: #ffffff;
+}
+
+.card-brow {
+  margin-top: 12px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+.cbtn {
+  width: 76px;
+  height: 44px;
+  border-radius: 22px;
+  background-color: #3a3a3c;
+  justify-content: center;
+  align-items: center;
+}
+.go {
+  margin-right: 8px;
+  background-color: #0a84ff;
+}
+.cbtn-t {
+  font-size: 24px;
+  line-height: 34px;
+  color: #ffffff;
+}
+
+.card-cd {
+  margin-top: 8px;
+  font-size: 24px;
+  line-height: 30px;
+  color: #6e6e73;
+  flex-shrink: 0;
 }
 </style>
 
