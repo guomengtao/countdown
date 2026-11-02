@@ -452,7 +452,9 @@ export default {
 /* 天数：独占一列，右对齐贴住「天」。44px 粗体（ev-six 次大档）；
    四位数由 decorate 降到 30px。 */
 .ls-num {
-  width: 78px;
+  /* 84：44px 三位数字实测约 87 逻辑 px，78 会让 126/306 压到标题或右溢被裁。
+     给到 84 后左列 flex 自动收成 56px，仍容得下 2 个 24px 汉字（48px）。 */
+  width: 84px;
   flex-shrink: 0;
   line-height: 46px;
   font-weight: bold;
@@ -477,7 +479,7 @@ export default {
 }
 
 .ls-today {
-  width: 102px;
+  width: 108px;
   flex-shrink: 0;
   font-size: 30px;
   line-height: 46px;
