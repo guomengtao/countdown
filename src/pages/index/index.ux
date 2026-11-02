@@ -5,7 +5,7 @@
        - pages/nickname screentype=rect，延迟 300ms 挂载
      字号只走 ev-six 四档：44/30/28/24 -->
 <template>
-  <div class="page" onswipe="onSwipe" ontouchstart="onTs" ontouchend="onTe">
+  <div class="page" onswipe="onSwipe">
     <text class="title">倒数日</text>
     <text class="sub">v{{ ver }}</text>
 
@@ -94,25 +94,15 @@ export default {
   // 所以进入设置科目只用「左滑」，并且右划必须原样留给系统，本页不拦。
   // 双通道：优先用 Vela 的 onswipe（部分平台/版本不派发），
   // 再兜一层 touch 起止坐标判定，两个通道都命中时用 navAt 去重，避免连开两页。
+  // 首页左滑 = 进入「设置科目」。
+  // ⚠️ 只用 Vela 原生 onswipe，绝对不要在页面根节点挂 touchstart/touchend：
+  // 2026-11-02 实测，根节点一挂 touch 监听，系统默认的「右划退出」就被吃掉，
+  // 手环上右滑退不出去（用户实机复现）。原生 onswipe 只读方向，不抢触摸流，
+  // 系统手势照常工作。
+  // 方向约定：「右划」= 系统退出，不能占用；进入设置科目只用「左滑」。
   onSwipe(evt) {
     const dir = (evt && evt.direction) || ''
     if (dir === 'left') this.goPillOnce()
-  },
-
-  onTs(evt) {
-    const t = (evt && evt.touches && evt.touches[0]) || {}
-    this.tx = t.clientX || t.x || 0
-    this.ty = t.clientY || t.y || 0
-    this.tt = Date.now()
-  },
-
-  onTe(evt) {
-    const list = (evt && evt.changedTouches) || (evt && evt.touches) || []
-    const t = list[0] || {}
-    const dx = (t.clientX || t.x || 0) - this.tx
-    const dy = Math.abs((t.clientY || t.y || 0) - this.ty)
-    const dt = Date.now() - this.tt
-    if (dx < -60 && dy < 60 && dt < 800) this.goPillOnce()
   },
 
   goPillOnce() {
