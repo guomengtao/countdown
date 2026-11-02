@@ -22,10 +22,13 @@
 
       <!-- 左滑提示：静态箭头 + 文字。
            刻意不挂 touch 监听做「跟手箭头」——Vela 上页面注册 touch 会把系统
-           「右划退出」手势吃掉（2026-11-02 实证，v0.0.103 之前一直退不出去）。 -->
+           「右划退出」手势吃掉（2026-11-02 实证，v0.0.103 之前一直退不出去）。
+           v0.0.113：左滑被识别时，这一行立刻换成蓝色「已识别左滑」，
+           让用户看见手势有反应，随后进入科目页。只换文案，不做动画/位移。 -->
       <div class="hint">
-        <image class="hint-ic" src="/common/icons/chevron-left-light.png"></image>
-        <text class="hint-t">左滑进入科目</text>
+        <image class="hint-ic" src="/common/icons/chevron-left-light.png" if="{{ !swiped }}"></image>
+        <text class="hint-t" if="{{ !swiped }}">左滑进入科目</text>
+        <text class="hint-t on" if="{{ swiped }}">已识别左滑 · 正在进入科目</text>
       </div>
     </div>
 
@@ -64,7 +67,8 @@ export default {
     tx: 0,
     ty: 0,
     tt: 0,
-    navAt: 0
+    navAt: 0,
+    swiped: false
   },
 
   onInit() {
@@ -77,6 +81,7 @@ export default {
 
   // 从设置页返回时要重新读一次，否则显示的永远是旧值
   onShow() {
+    this.swiped = false
     this.loadAll()
   },
 
@@ -124,9 +129,21 @@ export default {
 
   goPillOnce() {
     const now = Date.now()
-    if (this.navAt && now - this.navAt < 800) return
+    if (this.navAt && now - this.navAt < 1500) return
     this.navAt = now
-    router.push({ uri: '/pages/pill' })
+
+    // 先给可见反馈：提示行切成蓝色「已识别左滑 · 正在进入科目」，
+    // 停 260ms 让眼睛能捕捉到，再跳页。只做一次 setData，不动画、不位移，
+    // 避开 Vela「touch 回调里连续 setData 会退应用」的坑（v0.0.113/114 实证）。
+    this.swiped = true
+
+    const self = this
+    setTimeout(function () {
+      self.swiped = false
+      try {
+        router.push({ uri: '/pages/pill' })
+      } catch (e) {}
+    }, 260)
   },
 
   goPill() {
@@ -229,6 +246,10 @@ export default {
   font-size: 24px;
   line-height: 30px;
   color: #6e6e73;
+}
+/* 左滑被识别时的高亮文案：只换颜色，不改尺寸/位置，避免重排 */
+.hint-t.on {
+  color: #0a84ff;
 }
 
 .btn {
