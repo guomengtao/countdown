@@ -1,0 +1,179 @@
+<!-- 设置页（2026-11-02 v0.0.120 新建）
+     入口：首页「上滑」「长按」。
+     定位：手势总入口 / 功能索引页，将来新功能都往这里挂。
+     页头与 pill、nickname 两页同构（160×48 居中胶囊），不要各写一套。
+     字号只走 ev-six 四档：44 / 30 / 28 / 24 -->
+<template>
+  <div class="page">
+    <div class="top">
+      <div class="hd" onclick="goBack">
+        <image class="hd-ic" src="/common/icons/chevron-left-light.png"></image>
+        <text class="hd-t">设置</text>
+      </div>
+    </div>
+
+    <div class="list">
+      <div class="item" onclick="goNick">
+        <text class="it-k">昵称</text>
+        <text class="it-v">{{ nick || '未设置' }}</text>
+      </div>
+      <div class="item" onclick="goPill">
+        <text class="it-k">科目</text>
+        <text class="it-v">{{ subj || '未设置' }}</text>
+      </div>
+      <div class="item" onclick="goDiag">
+        <text class="it-k">诊断信息</text>
+        <text class="it-v">查看</text>
+      </div>
+      <div class="item" onclick="quitApp">
+        <text class="it-k">退出应用</text>
+        <text class="it-v">关闭</text>
+      </div>
+    </div>
+
+    <text class="ver">v{{ ver }}</text>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import storage from '@system.storage'
+import app from '@system.app'
+
+export default {
+  data: {
+    ver: '0.0.1',
+    nick: '',
+    subj: ''
+  },
+
+  onInit() {
+    try {
+      const info = app.getInfo()
+      if (info && info.versionName) this.ver = info.versionName
+    } catch (e) {}
+    this.loadAll()
+  },
+
+  onShow() {
+    this.loadAll()
+  },
+
+  loadAll() {
+    const self = this
+    storage.get({
+      key: 'cd_nick',
+      success: function (d) {
+        self.nick = d || ''
+      },
+      fail: function () {
+        self.nick = ''
+      }
+    })
+    storage.get({
+      key: 'cd_subject',
+      success: function (d) {
+        self.subj = d || ''
+      },
+      fail: function () {
+        self.subj = ''
+      }
+    })
+  },
+
+  goBack() {
+    router.back()
+  },
+  goNick() {
+    router.push({ uri: '/pages/nickname' })
+  },
+  goPill() {
+    router.push({ uri: '/pages/pill' })
+  },
+  goDiag() {
+    router.push({ uri: '/pages/diag' })
+  },
+  quitApp() {
+    try {
+      app.terminate()
+    } catch (e) {}
+  }
+}
+</script>
+
+<style>
+/* 字号只走 ev-six 四档：44 / 30 / 28 / 24（行高 60 / 40 / 38 / 34） */
+.page {
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  flex-direction: column;
+  align-items: center;
+}
+
+.top {
+  height: 48px;
+  flex-shrink: 0;
+  margin-top: 12px;
+  justify-content: center;
+  align-items: center;
+}
+.hd {
+  width: 160px;
+  height: 48px;
+  border-radius: 24px;
+  background-color: #3a3a3c;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+.hd-ic {
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
+  object-fit: contain;
+}
+.hd-t {
+  font-size: 28px;
+  line-height: 38px;
+  color: #ffffff;
+  lines: 1;
+}
+
+/* 条目行：宽 168 居中（192 屏左右各留 12），高 52 保证手指点得准 */
+.list {
+  width: 168px;
+  margin-top: 12px;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.item {
+  width: 100%;
+  height: 52px;
+  margin-bottom: 8px;
+  padding-left: 14px;
+  padding-right: 12px;
+  border-radius: 14px;
+  background-color: #1c1c1e;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+.it-k {
+  font-size: 24px;
+  line-height: 30px;
+  color: #ffffff;
+}
+.it-v {
+  font-size: 24px;
+  line-height: 30px;
+  color: #8e8e93;
+  lines: 1;
+}
+.ver {
+  margin-top: 6px;
+  font-size: 24px;
+  line-height: 30px;
+  color: #6e6e73;
+}
+</style>

@@ -43,7 +43,7 @@
       <div class="hint">
         <image class="hint-ic" src="/common/icons/chevron-left-light.png" if="{{ !swiped }}"></image>
         <text class="hint-t" if="{{ !swiped }}">左滑进入科目</text>
-        <text class="hint-t on" if="{{ swiped }}">松开进入科目</text>
+        <text class="hint-t on" if="{{ swiped }}">松开进入</text>
       </div>
     </div>
 
@@ -76,9 +76,9 @@
       <div class="card">
         <div class="card-top">
           <image class="card-ic" src="/common/icons/chevron-left-light.png"></image>
-          <text class="card-k">左滑进入</text>
+          <text class="card-k">{{ dirK }}</text>
         </div>
-        <text class="card-title">设置科目</text>
+        <text class="card-title">{{ dirV }}</text>
 
         <div class="sep"></div>
 
@@ -91,7 +91,7 @@
         </div>
 
         <div class="card-brow">
-          <div class="cbtn go" onclick="goPillFromSheet">
+          <div class="cbtn go" onclick="goFromSheet">
             <text class="cbtn-t">进入</text>
           </div>
           <div class="cbtn" onclick="closeSheet">
@@ -119,12 +119,17 @@ export default {
     tt: 0,
     navAt: 0,
     lx: 0,
+    ly: 0,
+    dir: '',
+    dirK: '左滑进入',
+    dirV: '设置科目',
     armed: false,
     swiped: false,
     sheet: false,
     left: 30,
     timer: 0,
-    holdTimer: 0
+    holdTimer: 0,
+    lpTimer: 0
   },
 
   onInit() {
@@ -168,86 +173,152 @@ export default {
     router.push({ uri: '/pages/nickname' })
   },
 
-  // ── 左滑：一滑就有反馈（v0.0.115）────────────────────────────
-  // 为什么不用 onswipe：onswipe 是「拖够阈值、已经滑完」才派发一次，
-  // 那时候页面马上就要翻走，变色根本看不见（用户原话：没意义）。
-  // 所以改用 touch 三件套，在位移刚过 16px 的瞬间就给反馈。
+  // ── 四向手势 + 长按（v0.0.120）────────────────────────────
+  // 方向约定（右划不是「进入」，它是退出）：
+  //   左滑 → 设置科目(pill)   右滑 → 退出应用
+  //   上滑 → 设置(settings)   下滑 → 诊断(diag)
+  //   长按 → 设置(settings)
+  // 为什么不用 onswipe：它只在「滑完」派发一次，那时页面已经要翻走，
+  // 变色根本看不见（用户原话：没意义）。所以用 touch 三件套，位移过 16px 就给反馈。
   //
-  // ⚠️ 三条红线（前几次翻车的教训）：
-  //   1) touchmove 里绝不做逐帧 setData —— 一次越过阈值只切一次状态，
-  //      用 this.armed 上锁（v0.0.113/114 逐帧刷 opacity，真机直接退应用）
-  //   2) 不写 opacity / transform / 位移，只换一行文字的颜色（不触发重排）
-  //   3) 根节点接住触摸流后系统右划失效，所以右划必须自己处理（onTouchEnd）
+  // ⚠️ 红线（前几次翻车的教训）：
+  //   1) touchmove 里绝不逐帧 setData —— 越过阈值只切一次状态（armed 上锁）
+  //   2) 不做 opacity / transform / 位移，只换文字颜色和文案
+  //   3) 根节点接管触摸后系统右划失效 → 右划退出由本页自己实现
   onTouchStart(evt) {
     const t = (evt && evt.touches && evt.touches[0]) || null
     if (!t) return
     this.tx = t.clientX
     this.ty = t.clientY
     this.lx = t.clientX
+    this.ly = t.clientY
     this.armed = false
+
+    // 长按：600ms 一指没动 → 设置页。
+    // Vela 标准虽写着 onlongpress，但各镜像派发不一致，自己用定时器判更可控。
+    const self = this
+    this.lpTimer = setTimeout(function () {
+      self.lpTimer = 0
+      if (self.armed || self.sheet) return
+      self.buzz()
+      self.goSettings()
+    }, 600)
   },
 
   onTouchMove(evt) {
     const t = (evt && evt.touches && evt.touches[0]) || null
     if (!t) return
     this.lx = t.clientX
+    this.ly = t.clientY
     if (this.armed) return
 
     const dx = t.clientX - this.tx
     const dy = t.clientY - this.ty
-    // 左移 16px 且没有明显上下漂移 = 认定「开始左滑」
-    if (dx <= -16 && Math.abs(dy) < 40) {
-      this.armed = true
-      this.swiped = true      // 唯一一次 setData：提示行变蓝
-      this.buzz()             // 唯一一次震动：手环上比颜色更即时
+    const ax = Math.abs(dx)
+    const ay = Math.abs(dy)
+    if (ax < 16 && ay < 16) return
 
-      // 手指停住不松 = 用户在犹豫「这条手势通向哪」→ 400ms 后弹提示卡。
-      // 快速一滑不会触发（手指早就离开了），所以不打扰老手。
-      const self = this
-      this.holdTimer = setTimeout(function () {
-        self.holdTimer = null
-        self.openSheet()
-      }, 400)
+    // 主轴判定：横向位移更大算左右，否则算上下
+    let d = ''
+    if (ax >= ay) d = dx < 0 ? 'left' : 'right'
+    else d = dy < 0 ? 'up' : 'down'
+    this.setDir(d)
+  },
+
+  // 认定方向：整个手势过程里只在这里做一次 setData + 一次震动
+  setDir(d) {
+    this.armed = true
+    this.dir = d
+    if (d === 'left') {
+      this.dirK = '左滑进入'
+      this.dirV = '设置科目'
+    } else if (d === 'up') {
+      this.dirK = '上滑进入'
+      this.dirV = '设置'
+    } else if (d === 'down') {
+      this.dirK = '下滑进入'
+      this.dirV = '诊断'
+    } else {
+      this.dirK = '右滑'
+      this.dirV = '退出应用'
     }
+    this.swiped = true
+    this.buzz()
+
+    if (this.lpTimer) {
+      clearTimeout(this.lpTimer)
+      this.lpTimer = 0
+    }
+
+    // 右划是退出，不弹提示卡
+    if (d === 'right') return
+
+    // 手指停住 = 用户在犹豫这条手势通向哪 → 400ms 后弹提示卡
+    const self = this
+    this.holdTimer = setTimeout(function () {
+      self.holdTimer = 0
+      self.openSheet()
+    }, 400)
   },
 
   onTouchEnd() {
+    if (this.lpTimer) {
+      clearTimeout(this.lpTimer)
+      this.lpTimer = 0
+    }
     if (this.holdTimer) {
       clearTimeout(this.holdTimer)
-      this.holdTimer = null
+      this.holdTimer = 0
     }
 
-    // 弹窗已经弹出来了：松手不再自动跳转，让用户看/选（倒计时自己会关）
-    if (this.sheet) return
-
     const dx = this.lx - this.tx
-    const armed = this.armed
+    const dy = this.ly - this.ty
+    const d = this.dir
     this.armed = false
 
-    // 右划：系统手势已被本页吃掉，这里等价兜底（超过 60px 才算数，避免误触）
-    if (dx >= 60) {
+    // 右划 → 退出（系统手势已被本页吃掉，这里等价兜底）
+    if (d === 'right') {
       this.swiped = false
-      this.quitApp()
+      if (dx >= 50) this.quitApp()
       return
     }
 
-    // 松手时位移仍够 → 直接进入（不多弹一层，避免「滑完还要再点一次」）
-    if (armed && dx <= -30) {
+    // 松手时位移仍够 → 直接进，不需要再点「进入」按钮。
+    // 哪怕中途停住看过提示卡，只要最后滑够了照样直接进。
+    let enough = false
+    if (d === 'left') enough = dx <= -30
+    else if (d === 'up') enough = dy <= -30
+    else if (d === 'down') enough = dy >= 30
+
+    if (enough) {
+      this.closeSheet()
       const self = this
       setTimeout(function () {
         self.swiped = false
-        self.enterPill()
+        self.enterByDir(d)
       }, 100)
       return
     }
 
-    // 滑了但放弃 / 没滑够 → 弹窗解释这条手势通向哪，可以看也可以不看
-    if (armed) {
+    // 滑了但没滑够 / 放弃 → 弹提示卡，让人看清这条手势通向哪
+    if (d) {
       this.openSheet()
       return
     }
 
     this.swiped = false
+  },
+
+  enterByDir(d) {
+    if (d === 'up') {
+      this.goSettings()
+      return
+    }
+    if (d === 'down') {
+      this.goDiag()
+      return
+    }
+    this.enterPill()
   },
 
   // 弹窗：不自动进入，30 秒倒计时后自己关。数字每秒刷一次（低频，安全）
@@ -266,15 +337,17 @@ export default {
   closeSheet() {
     if (this.timer) {
       clearInterval(this.timer)
-      this.timer = null
+      this.timer = 0
     }
     this.sheet = false
     this.swiped = false
   },
 
-  goPillFromSheet() {
+  // 弹窗里的「进入」：按当前方向进对应页（dir 保留到下次 setDir 才覆盖）
+  goFromSheet() {
+    const d = this.dir
     this.closeSheet()
-    this.enterPill()
+    this.enterByDir(d)
   },
 
   // 震动：函数内 require（顶层 import 在某镜像上会把整页带崩，见 class-schedule 踩坑）
@@ -303,6 +376,12 @@ export default {
 
   goPill() {
     router.push({ uri: '/pages/pill' })
+  },
+
+  goSettings() {
+    try {
+      router.push({ uri: '/pages/settings' })
+    } catch (e) {}
   },
 
   goDiag() {
