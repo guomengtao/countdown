@@ -21,7 +21,7 @@
     <div class="toolbar" if="{{ countdownList.length > 0 }}">
       <text class="toolbar-link" onclick="toggleSort" style="color: {{ theme.textSecondary }}">{{ sortRecent ? '按时间' : '按名称' }}</text>
       <text class="toolbar-link" onclick="clearAll"
-            style="color: {{ clearAllConfirm ? theme.deleteText : theme.textMuted }}">{{ clearAllConfirm ? '再点一次清空' : '清空' }}</text>
+            style="color: {{ clearAllConfirm ? theme.deleteText : theme.textMuted }}">{{ clearAllConfirm ? '确认清空' : '清空' }}</text>
     </div>
 
     <scroll class="list-scroll" scroll-y="{{true}}">
@@ -91,7 +91,7 @@
          圆角裁切不到、也不会和列表滚动抢手势。 -->
     <div class="actions">
       <div class="act-add" onclick="startAdd" style="background-color: {{ theme.accent }}">
-        <text class="act-add-t" style="color: {{ theme.bg }}">{{ countdownList.length > 0 ? '＋ 添加' : '＋ 添加倒数日' }}</text>
+        <text class="act-add-t" style="color: {{ theme.bg }}">＋添加</text>
       </div>
       <div class="act-set" onclick="goSettings" style="background-color: {{ theme.cardLight }}">
         <text class="act-set-t" style="color: {{ theme.text }}">设置</text>
@@ -232,7 +232,10 @@ export default {
       }
 
       it.dateLine = this.dateLine(it.date)
-      it.lunarLine = (it.cal === "lunar" && it.lunarText) ? ("农历" + it.lunarText) : ""
+      // 只放 lunarText 本体（如「八月初八」），不加「农历」前缀：
+      // 24px 下「农历闰四月初十」7 字 = 168px 远超卡内宽 144px 必折行，
+      // 而「闰四月初十」6 字 = 144px 正好放下（ev-six 最小 24，不能再缩）。
+      it.lunarLine = (it.cal === "lunar" && it.lunarText) ? String(it.lunarText) : ""
       it.lunarColor = it.status === "done" ? this.theme.textMuted : textColor
 
       var p = countdown.progressOf(it)
@@ -354,8 +357,8 @@ export default {
 }
 
 .toolbar-link {
-  font-size: 20px;
-  line-height: 26px;
+  font-size: 24px;
+  line-height: 30px;
   lines: 1;
   flex-shrink: 0;
 }
@@ -407,18 +410,19 @@ export default {
   margin-top: 2px;
 }
 
+/* ev-six 次大档 44：天数是本页唯一的一级信息 */
 .cd-days {
-  font-size: 36px;
-  line-height: 42px;
+  font-size: 44px;
+  line-height: 52px;
   font-weight: bold;
   flex-shrink: 0;
 }
 
 .cd-unit {
-  font-size: 20px;
-  line-height: 26px;
+  font-size: 24px;
+  line-height: 30px;
   margin-left: 4px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   flex-shrink: 0;
 }
 
@@ -443,8 +447,8 @@ export default {
 }
 
 .cd-date {
-  font-size: 20px;
-  line-height: 26px;
+  font-size: 24px;
+  line-height: 30px;
   width: 100%;
   margin-top: 4px;
   lines: 1;
@@ -452,15 +456,15 @@ export default {
 
 /* 农历行：与公历同号同色系，只靠颜色区分主次 */
 .cd-lunar {
-  font-size: 20px;
-  line-height: 26px;
+  font-size: 24px;
+  line-height: 30px;
   width: 100%;
   margin-top: 1px;
   lines: 1;
 }
 
 .cd-off-tag {
-  font-size: 18px;
+  font-size: 24px;
   line-height: 30px;
   flex-shrink: 0;
   margin-left: 6px;
@@ -480,8 +484,8 @@ export default {
 }
 
 .cd-group-label {
-  font-size: 20px;
-  line-height: 26px;
+  font-size: 24px;
+  line-height: 30px;
   margin-left: 6px;
   flex-shrink: 0;
 }
@@ -506,14 +510,14 @@ export default {
 }
 
 .act-add-t {
-  font-size: 22px;
-  line-height: 28px;
+  font-size: 24px;
+  line-height: 30px;
   text-align: center;
   lines: 1;
 }
 
 .act-set {
-  width: 64px;
+  width: 60px;
   height: 44px;
   border-radius: 22px;
   justify-content: center;
@@ -523,8 +527,8 @@ export default {
 }
 
 .act-set-t {
-  font-size: 22px;
-  line-height: 28px;
+  font-size: 24px;
+  line-height: 30px;
   text-align: center;
   lines: 1;
 }
@@ -538,8 +542,8 @@ export default {
 }
 
 .empty-sub {
-  font-size: 20px;
-  line-height: 28px;
+  font-size: 24px;
+  line-height: 30px;
   text-align: center;
   width: 100%;
   margin-top: 2px;
@@ -568,12 +572,14 @@ export default {
 }
 
 .hero-title {
-  font-size: 22px;
-  line-height: 28px;
+  font-size: 24px;
+  line-height: 30px;
   lines: 1;
   text-align: center;
 }
 
+/* 64px 超出 ev-six 四档，属「主数字＝图形本体」豁免（同课程表表盘 76/104 的处理），
+   理由：这一版式存在的唯一目的就是让天数成为整屏视觉主体，压回 44 就与标准卡无差别 */
 .hero-num {
   font-size: 64px;
   line-height: 72px;
@@ -582,22 +588,22 @@ export default {
 }
 
 .hero-unit {
-  font-size: 20px;
-  line-height: 24px;
+  font-size: 24px;
+  line-height: 30px;
   text-align: center;
   margin-top: 2px;
 }
 
 .hero-date {
-  font-size: 20px;
-  line-height: 26px;
+  font-size: 24px;
+  line-height: 30px;
   text-align: center;
   margin-top: 8px;
 }
 
 .hero-lunar {
-  font-size: 18px;
-  line-height: 24px;
+  font-size: 24px;
+  line-height: 30px;
   text-align: center;
   margin-top: 1px;
 }
