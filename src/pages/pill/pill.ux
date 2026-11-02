@@ -34,13 +34,17 @@
       </div>
     </div>
 
-    <!-- 诊断行：左侧屏宽×屏高，右侧档位切换按钮（仅真机测试期使用）。
-         这一行 y≈86，胶囊屏在这里接近满宽（可用 4~208），不会被弧边切 -->
-    <div class="irow">
-      <text class="info">{{ diag }}</text>
-      <div class="mode" onclick="nextMode">
-        <text class="mode-t">{{ mode }}</text>
-      </div>
+    <!-- 分辨率/屏宽行已删（2026-11-02）：490 屏上这 26px 是键盘能不能整块出来的关键，
+         屏宽×屏高改到「诊断信息」页看，设置页把高度全留给键盘 -->
+
+    <!-- 档位按钮条（仅真机测试期使用）：4 个按钮各自对应一档，点哪个进哪档，
+         一次装机就能把四种容器高度全试完，不必循环点。
+         位于 y≈90，胶囊屏此处已接近矩形段（可用 2~210），4×44+3×6=194 居中不切边 -->
+    <div class="mbar">
+      <div class="{{ m1 }}" onclick="setMode1"><text class="mb-t">1</text></div>
+      <div class="{{ m2 }}" onclick="setMode2"><text class="mb-t">2</text></div>
+      <div class="{{ m3 }}" onclick="setMode3"><text class="mb-t">3</text></div>
+      <div class="{{ m4 }}" onclick="setMode4"><text class="mb-t">4</text></div>
     </div>
 
     <div class="row2">
@@ -53,7 +57,7 @@
       </div>
     </div>
 
-    <div class="ime-host {{ cls }}">
+    <div class="ime-host {{ cls }}" style="{{ imeStyle }}">
       <input-method
         hide="{{ false }}"
         keyboardtype="QWERTY"
@@ -82,8 +86,13 @@ export default {
     diag: '',
     mode: 4,
     cls: 'h4',
+    m1: 'mb0',
+    m2: 'mb0',
+    m3: 'mb0',
+    m4: 'mb1',
     sw: 0,
-    sh: 0
+    sh: 0,
+    imeStyle: 'height:336px'
   },
 
   onInit() {
@@ -115,14 +124,37 @@ export default {
 
   refresh() {
     this.diag = this.sw + '×' + this.sh
+    this.applyH()
   },
 
-  nextMode() {
-    this.mode = this.mode >= 4 ? 1 : this.mode + 1
-    this.cls = 'h' + this.mode
-    this.refresh()
-    probe.mark('subject', 'mode' + this.mode)
+  // 键盘高度按屏幕实际高度算，不再写死：
+  // 手环 11/10 是 520 高 → 520-184=336；手环 9 是 490 高 → 306。
+  // 写死 336 在 490 上会让键盘顶到输入框（键盘 top=154 < 输入框底 180）。
+  applyH() {
+    const base = { 1: 250, 2: 330, 3: 400, 4: 9999 }
+    // 154 = 顶部胶囊(12+48) + 档位行(2+46) + 输入行(2+44)；留 4px 间隙
+    const maxH = (this.sh ? this.sh : 520) - 158
+    let h = base[this.mode]
+    if (!h || h > maxH) h = maxH
+    this.imeStyle = 'height:' + h + 'px'
   },
+
+  // 4 个按钮各自直连一档：点哪个进哪档，不需要循环
+  setMode(n) {
+    this.mode = n
+    this.cls = 'h' + n
+    this.m1 = n === 1 ? 'mb1' : 'mb0'
+    this.m2 = n === 2 ? 'mb1' : 'mb0'
+    this.m3 = n === 3 ? 'mb1' : 'mb0'
+    this.m4 = n === 4 ? 'mb1' : 'mb0'
+    this.applyH()
+    probe.mark('subject', 'mode' + n)
+  },
+
+  setMode1() { this.setMode(1) },
+  setMode2() { this.setMode(2) },
+  setMode3() { this.setMode(3) },
+  setMode4() { this.setMode(4) },
 
   onChar(evt) {
     const c = (evt && evt.detail && evt.detail.content) || ''
@@ -169,7 +201,7 @@ export default {
   z-index: 10;
   height: 48px;
   flex-shrink: 0;
-  margin-top: 18px;
+  margin-top: 12px;
   justify-content: center;
   align-items: center;
 }
@@ -194,38 +226,47 @@ export default {
   color: #ffffff;
   lines: 1;
 }
-/* 档位按钮：只在真机测试期存在，用来切换键盘容器高度 */
-.mode {
-  width: 68px;
-  height: 52px;
-  margin-left: 10px;
-  border-radius: 26px;
-  background-color: #ff9f0a;
-  justify-content: center;
-  align-items: center;
-}
-.mode-t {
-  font-size: 30px;
-  color: #ffffff;
-}
-.irow {
+/* 档位按钮条：4 个按钮并排，点哪个进哪档。
+   总宽 4×44 + 3×6 = 194，212 屏居中后 x∈[9,203]，y≈90 处可用 2~210，不切边。
+   选中态橙色（和蓝色「保存」区分），未选中深灰，一眼看出当前档位 */
+.mbar {
   z-index: 10;
-  height: 52px;
+  height: 46px;
   flex-shrink: 0;
-  margin-top: 4px;
+  margin-top: 2px;
   flex-direction: row;
   justify-content: center;
   align-items: center;
 }
-.info {
-  font-size: 24px;
-  color: #8e8e93;
+/* 必须用「单类名」而不是 .mb.on 复合选择器：
+   实测 Vela 会把 .mb.on 宽松匹配到所有带 .mb 的元素，导致 4 个按钮全橙 */
+.mb0 {
+  width: 42px;
+  height: 46px;
+  margin-left: 3px;
+  border-radius: 14px;
+  background-color: #2c2c2e;
+  justify-content: center;
+  align-items: center;
+}
+.mb1 {
+  width: 42px;
+  height: 46px;
+  margin-left: 3px;
+  border-radius: 14px;
+  background-color: #ff9f0a;
+  justify-content: center;
+  align-items: center;
+}
+.mb-t {
+  font-size: 28px;
+  color: #ffffff;
   lines: 1;
 }
 /* 输入框与保存并排，省下一整行高度留给键盘 */
 .row2 {
   z-index: 10;
-  margin-top: 6px;
+  margin-top: 2px;
   flex-shrink: 0;
   flex-direction: row;
   justify-content: center;
@@ -261,33 +302,17 @@ export default {
   font-size: 24px;
   color: #ffffff;
 }
-/* 键盘宿主：三档固定高度（真机实验）。
+/* 键盘宿主：四档统一「贴底绝对定位 + 内联高度」。
    组件内部键盘是 position:absolute;bottom:0，父级必须给出确定高度，
-   之前用 flex:1 + min-height 在真机上算不出高度，键盘就被排到看不见的地方 */
+   min-height / flex:1 在 Vela 的 flex 子项上算不出高度，键盘会被排到看不见的地方。
+   踩坑（2026-11-01 真机）：曾用 left/top:0 + width/height:100% 铺满整屏，
+   而 Vela 真机上 z-index 拦不住它，返回胶囊/档位按钮/输入框/保存
+   四个热区全部点不动（点到的都是这层空容器）。所以只盖键盘那块地，
+   高度 = 屏高 - 184（顶部占位），由 applyH() 按真机屏高算，不写死。 */
 .ime-host {
-  width: 100%;
-  flex-shrink: 0;
-}
-.h1 {
-  height: 250px;
-}
-.h2 {
-  height: 330px;
-}
-.h3 {
-  height: 400px;
-}
-/* 4 档：从「内容下方」到底边，不再 top:0 铺满整屏。
-   踩坑（2026-11-01 真机）：原来 left/top:0 + width/height:100% 会盖住整个页面，
-   而 Vela 真机上 z-index 拦不住它，导致返回胶囊、档位按钮、输入框、保存
-   四个热区全部点不动（点到的都是这层空容器）。现在容器只占键盘那块地，
-   上方 y<180 的区域不覆盖；内部键盘 bottom:0，依旧贴屏幕底。
-   内容区实测到底 y≈154（top 20+40 / irow 4+44 / row2 6+40），留 26px 余量。 */
-.h4 {
   position: absolute;
   left: 0;
   bottom: 0;
   width: 100%;
-  height: 336px;
 }
 </style>

@@ -19,11 +19,14 @@
 
 <template>
   <div class="page">
-    <div class="back" onclick="goBack">
-      <text class="back-t">‹</text>
+    <!-- 页头与「设置科目」页完全一致：居中胶囊，图标 + 标题，整块可点返回。
+         图标用 lucide chevron-left 的 PNG（深底用 light 白描边），不用 icon font -->
+    <div class="top">
+      <div class="hd" onclick="goBack">
+        <image class="hd-ic" src="/common/icons/chevron-left-light.png"></image>
+        <text class="hd-t">设置昵称</text>
+      </div>
     </div>
-
-    <text class="title">设置昵称</text>
 
     <div class="disp">
       <text class="txt" if="{{ text.length }}">{{ text }}</text>
@@ -116,33 +119,40 @@ export default {
   height: 100%;
   background-color: #000000;
   flex-direction: column;
+  align-items: center;
 }
 
-.back {
-  width: 44px;
-  height: 44px;
-  margin-top: 24px;
-  margin-left: 30px;
-  align-self: flex-start;
+/* 顶部行与「设置科目」页同构：高度 48 固定，flex-shrink:0，
+   否则键盘撑高后页头被压成 0 高度 */
+.top {
+  z-index: 10;
+  height: 48px;
   flex-shrink: 0;
+  margin-top: 12px;
   justify-content: center;
   align-items: center;
-  border-radius: 12px;
+}
+
+/* 返回胶囊：热区按 48×48 下限走，整块可点 */
+.hd {
+  width: 160px;
+  height: 48px;
+  border-radius: 24px;
   background-color: #3a3a3c;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
 }
-
-.back-t {
-  font-size: 30px;
-  color: #ffffff;
-  line-height: 36px;
+.hd-ic {
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
+  object-fit: contain;
 }
-
-.title {
+.hd-t {
   font-size: 28px;
-  line-height: 38px;
   color: #ffffff;
-  text-align: center;
-  flex-shrink: 0;
+  lines: 1;
 }
 
 .disp {
