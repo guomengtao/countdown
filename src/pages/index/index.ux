@@ -5,19 +5,23 @@
        - pages/nickname screentype=rect，延迟 300ms 挂载
      字号只走 ev-six 四档：44/30/28/24 -->
 <template>
-  <div class="page" onswipe="onSwipe">
-    <text class="title">倒数日</text>
-    <text class="sub">v{{ ver }}</text>
+  <div class="page">
+    <!-- 手势只挂在这个信息块上，不挂页面根节点：
+         根节点挂 onswipe 会把系统的「右划退出」吃掉（2026-11-02 实机两次复现） -->
+    <div class="mid" onswipe="onSwipe">
+      <text class="title">倒数日</text>
+      <text class="sub">v{{ ver }}</text>
 
-    <div class="nick-box">
-      <text class="nick" if="{{ nick }}">{{ nick }}</text>
-      <text class="nick-ph" if="{{ !nick }}">还没设置昵称</text>
+      <div class="nick-box">
+        <text class="nick" if="{{ nick }}">{{ nick }}</text>
+        <text class="nick-ph" if="{{ !nick }}">还没设置昵称</text>
+      </div>
+
+      <text class="subj" if="{{ subj }}">科目 {{ subj }}</text>
+      <text class="subj off" if="{{ !subj }}">科目未设置</text>
+
+      <text class="hint">左滑进入科目</text>
     </div>
-
-    <text class="subj" if="{{ subj }}">科目 {{ subj }}</text>
-    <text class="subj off" if="{{ !subj }}">科目未设置</text>
-
-    <text class="hint">左滑进入科目</text>
 
     <!-- 主按钮给「设置科目」：当前真机测试主线 -->
     <div class="btn primary" onclick="goPill">
@@ -28,8 +32,15 @@
       <text class="btn-t">设置昵称</text>
     </div>
 
-    <div class="btn" onclick="goDiag">
-      <text class="btn-t">诊断信息</text>
+    <!-- 底部并排：诊断 + 退出。退出是兜底动作 —— 只要本应用在手势上占过位，
+         系统的右划退出就可能失效，必须给用户一个明确的出口 -->
+    <div class="brow">
+      <div class="btn half" onclick="goDiag">
+        <text class="btn-t">诊断</text>
+      </div>
+      <div class="btn half quit" onclick="quitApp">
+        <text class="btn-t">退出</text>
+      </div>
     </div>
   </div>
 </template>
@@ -118,6 +129,19 @@ export default {
 
   goDiag() {
     router.push({ uri: '/pages/diag' })
+  },
+
+  // 退出兜底：优先 app.terminate()（手环上等于退出应用），
+  // 万一该 API 在当前镜像不可用，退回 router.back()，两种都试一遍不阻塞 UI
+  quitApp() {
+    try {
+      app.terminate()
+    } catch (e) {}
+    setTimeout(function () {
+      try {
+        router.back()
+      } catch (e) {}
+    }, 80)
   }
 }
 </script>
@@ -209,4 +233,30 @@ export default {
   line-height: 38px;
   color: #ffffff;
 }
+/* 手势区：只包住标题/版本/昵称/科目/提示这块，不铺满整屏 */
+.mid {
+  width: 100%;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 底部并排两个小按钮：诊断 + 退出（退出是系统手势被占后的兜底出口） */
+.brow {
+  margin-top: 10px;
+  flex-shrink: 0;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+.half {
+  width: 84px;
+  height: 44px;
+  margin-top: 0;
+}
+.quit {
+  margin-left: 8px;
+  background-color: #3a3a3c;
+}
 </style>
+
