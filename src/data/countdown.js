@@ -134,6 +134,10 @@ function normalizeItem(it) {
   o.title = (it && it.title) ? String(it.title) : ""
   o.date = (it && it.date && /^\d{4}-\d{2}-\d{2}$/.test(String(it.date))) ? String(it.date) : "2030-01-01"
   o.enabled = (it && it.enabled !== undefined && it.enabled !== null) ? !!it.enabled : true
+  // 计时方向（2026-11-02 新增）：down = 倒数（目标在未来，显示「还有 N 天」）
+  //                          up   = 正计时（起点在过去，显示「已经 N 天」）
+  // 老数据没有这个字段 → 一律 down，语义与升级前完全一致，不需要迁移。
+  o.mode = (it && it.mode === "up") ? "up" : "down"
   // 进度口径：createdAt 存在则保留，否则按「目标日 − 90 天」回填（兼容 v1 迁移/旧数据）
   o.createdAt = (it && it.createdAt && isFinite(Number(it.createdAt))) ? Number(it.createdAt) : backfillCreatedAt(o.date)
   // 输入时用的日历：只影响卡片上要不要多显示一行农历，落盘 date 永远是公历
@@ -179,14 +183,20 @@ function progressOf(it) {
 }
 
 // 分组排序：进行中(含今天)在前，已结束在后；组内按 mode（recent/name）
+// 一个条目算不算「进行中」：正计时（mode=up）永远算，倒数看 daysLeft >= 0
+function isActive(it) {
+  return (it.mode === "up") ? true : (it.daysLeft >= 0)
+}
+
 function sortForDisplay(list, mode) {
   list.sort(function(a, b) {
-    var gA = a.daysLeft >= 0 ? 0 : 1
-    var gB = b.daysLeft >= 0 ? 0 : 1
+    var gA = isActive(a) ? 0 : 1
+    var gB = isActive(b) ? 0 : 1
     if (gA !== gB) return gA - gB
     if (mode !== "name") {
-      var rA = a.daysLeft >= 0 ? a.daysLeft : -a.daysLeft
-      var rB = b.daysLeft >= 0 ? b.daysLeft : -b.daysLeft
+      // 正计时按「已过天数」、倒数按「还剩天数」，两组都取绝对值比较
+      var rA = Math.abs(a.daysLeft)
+      var rB = Math.abs(b.daysLeft)
       if (rA !== rB) return rA - rB
       return 0
     }
@@ -382,6 +392,7 @@ function upsert(items, item) {
 }
 
 module.exports = {
+  isActive: isActive,
   V2_KEY: V2_KEY,
   OLD_KEY: OLD_KEY,
   COLORS: COLORS,

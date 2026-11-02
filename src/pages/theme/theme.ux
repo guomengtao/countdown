@@ -16,15 +16,19 @@
 
     <scroll class="list" scroll-y="{{true}}">
       <div for="{{ (idx, item) in themes }}" class="row"
-           style="background-color: {{ item.card }}"
-           onclick="pick($item)">
+           style="background-color: {{ item.card }}; border: {{ item.key === cur ? 2 : 0 }}px solid {{ item.accent }}"
+           onclick="pick(item)">
         <!-- 色块用 bg + accent 双层：只给一个色点看不出「浅色主题」，
              双层能同时表达底色和强调色，一眼分得清深/浅。 -->
         <div class="sw" style="{{ item.swatch }}">
           <div class="dot" style="{{ item.dot }}"></div>
         </div>
-        <text class="nm" style="color: {{ theme.text }}">{{ item.name }}</text>
-        <text class="ck" if="{{ item.key === cur }}" style="color: {{ theme.accent }}">当前</text>
+        <!-- 文字色必须取 item.text（该主题自己的文字色）：
+             用 theme.text（当前主题）会让「晨光白/暖阳米」两行变成白字白底，
+             看起来像列表底部多出两个空白行（2026-11-02 真机反馈的真因）。 -->
+        <text class="nm" style="color: {{ item.text }}">{{ item.name }}</text>
+        <!-- 当前项不用「当前」二字（168px 行宽里 4 字名字 96 + 色块 34 + 「当前」48 必折行），
+             改成整行 2px 强调色描边，见 .row 的 inline border -->
       </div>
     </scroll>
   </div>
@@ -100,7 +104,7 @@ export default {
   object-fit: contain;
 }
 .hd-t {
-  font-size: 28px;
+  font-size: 30px;
   line-height: 38px;
   lines: 1;
 }
@@ -145,15 +149,9 @@ export default {
 .nm {
   flex: 1;
   margin-left: 8px;
+  margin-right: 4px;
   font-size: 24px;
   line-height: 30px;
   lines: 1;
-}
-.ck {
-  font-size: 24px;
-  line-height: 30px;
-  lines: 1;
-  flex-shrink: 0;
-  margin-left: 6px;
 }
 </style>

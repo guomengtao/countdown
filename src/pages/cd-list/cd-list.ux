@@ -24,7 +24,7 @@
            版式是高频轻操作，清空是低频危险操作，两者的热区权重不该一样。
            清空下沉到设置页（那里才有二次确认的位置）。 -->
       <text class="toolbar-link" onclick="toggleLayout"
-            style="color: {{ theme.accent }}">{{ layout === 'hero' ? '大字' : '标准' }}</text>
+            style="color: {{ theme.accent }}">{{ layout === 'hero' ? '大字' : '列表' }}</text>
     </div>
 
     <scroll class="list-scroll" scroll-y="{{true}}">
@@ -34,32 +34,25 @@
           <text class="cd-group-label" style="color: {{ theme.textMuted }}">已结束</text>
         </div>
 
-        <!-- 版式 A · 标准卡（layout=card，默认）
-             卡片只承载「读」：标题 / 天数 / 进度 / 日期。写操作全在编辑页。 -->
-        <div class="countdown-row" if="{{ layout === 'card' }}"
-             style="{{ item.cardBg }}; opacity: {{ item.enabled ? 1 : 0.5 }}; {{ item.cardBorder }}"
+        <!-- 版式 A · 简单列表（layout=list，默认）：两行一条
+             第 1 行 标题，第 2 行 「还有 22 天」/「已经 126 天」。
+             刻意不要日期、不要农历、不要进度条 —— 一屏只放得下 3 条，
+             多塞一样东西换来的只是稀释「还剩几天」这一个重点。
+             要看细节点卡片进编辑页。 -->
+        <div class="ls-row" if="{{ layout !== 'hero' }}"
+             style="background-color: {{ item.lsBg }}; opacity: {{ item.enabled ? 1 : 0.5 }}"
              onclick="openForm(item.id)">
-          <div class="cd-head">
-            <text class="cd-title" style="color: {{ theme.text }}">{{ item.title }}</text>
-            <text if="{{ !item.enabled }}" class="cd-off-tag" style="color: {{ theme.textMuted }}">已关闭</text>
+          <div class="ls-line1">
+            <text class="ls-title" style="color: {{ theme.text }}">{{ item.title }}</text>
+            <text if="{{ !item.enabled }}" class="ls-off" style="color: {{ theme.textMuted }}">关闭</text>
           </div>
-
-          <!-- 天数行：大数字 + 小单位，基线对齐（unit 用 margin-bottom 微调，
-               Vela 的 align-items:flex-end 在不同固件上表现不一致） -->
-          <div class="cd-days-row">
-            <text class="cd-days" style="color: {{ item.daysColor }}">{{ item.numText }}</text>
-            <text class="cd-unit" style="color: {{ item.daysColor }}">{{ item.unitText }}</text>
-          </div>
-
-          <text class="cd-date" style="color: {{ theme.textSecondary }}">{{ item.dateLine }}</text>
-          <text if="{{ item.lunarLine }}" class="cd-lunar" style="color: {{ item.lunarColor }}">{{ item.lunarLine }}</text>
-
-          <!-- 进度做成卡片底部的细彩条（3px）：iOS 倒数日首页没有进度条，
-               但完全去掉就少了一条「时间在走」的视觉暗示，压到 3px 只做质感 -->
-          <div class="cd-bar">
-            <div class="cd-bar-track" style="background-color: {{ theme.borderLight }}">
-              <div class="cd-bar-fill" style="width: {{ item.fillPx }}px; {{ item.barBg }}"></div>
-            </div>
+          <div class="ls-line2">
+            <!-- 就是今天：不显示「还有 0 天」这种废话，直接一句话 -->
+            <text if="{{ item.isToday }}" class="ls-today" style="color: {{ item.daysColor }}">就是今天</text>
+            <text if="{{ !item.isToday }}" class="ls-phrase" style="color: {{ theme.textSecondary }}">{{ item.phrase }}</text>
+            <text if="{{ !item.isToday }}" class="ls-num"
+                  style="color: {{ item.daysColor }}; font-size: {{ item.numSize }}px">{{ item.numText }}</text>
+            <text if="{{ !item.isToday }}" class="ls-unit" style="color: {{ item.daysColor }}">{{ item.unitText }}</text>
           </div>
         </div>
 
@@ -70,9 +63,10 @@
         <div class="hero-card" if="{{ layout === 'hero' }}"
              style="{{ item.cardBg }}; opacity: {{ item.enabled ? 1 : 0.5 }}; {{ item.cardBorder }}"
              onclick="openForm(item.id)">
-          <text class="hero-title" style="color: {{ theme.textSecondary }}">{{ item.title }}</text>
-          <text class="hero-num" style="color: {{ item.daysColor }}">{{ item.numText }}</text>
-          <text class="hero-unit" style="color: {{ item.daysColor }}">{{ item.heroUnit }}</text>
+          <text class="hero-title" style="color: {{ theme.text }}">{{ item.title }}</text>
+          <text if="{{ item.isToday }}" class="hero-today" style="color: {{ item.daysColor }}">就是今天</text>
+          <text if="{{ !item.isToday }}" class="hero-num" style="color: {{ item.daysColor }}">{{ item.numText }}</text>
+          <text if="{{ !item.isToday }}" class="hero-unit" style="color: {{ item.daysColor }}">{{ item.heroUnit }}</text>
           <text class="hero-date" style="color: {{ theme.textSecondary }}">{{ item.dateLine }}</text>
           <text if="{{ item.lunarLine }}" class="hero-lunar" style="color: {{ item.lunarColor }}">{{ item.lunarLine }}</text>
           <div class="hero-bar">
@@ -129,8 +123,8 @@ export default {
       deleteText: "#ff453a"
     },
     countdownList: [],
-    // 列表版式：card = 标准卡（默认） / hero = 沉浸大数字。存 storage key cd_layout
-    layout: "card",
+    // 列表版式：list = 简单列表（默认，两行一条） / hero = 大字（竖版居中）。key cd_layout
+    layout: "list",
     sortRecent: true,
     clearAllConfirm: false,
     clearTimer: null
@@ -160,10 +154,12 @@ export default {
     storage.get({
       key: "cd_layout",
       success: function (v) {
-        self.layout = (v === "hero") ? "hero" : "card"
+        // 老版本存的是 "card"（标准卡），现在这个值对应「简单列表」版式，
+        // 一律归一到 list，不做数据迁移
+        self.layout = (v === "hero") ? "hero" : "list"
       },
       fail: function () {
-        self.layout = "card"
+        self.layout = "list"
       }
     })
   },
@@ -207,45 +203,56 @@ export default {
     var light = this.isLight
     for (var i = 0; i < items.length; i++) {
       var it = items[i]
-      it.status = countdown.statusOf(it)
       var d = it.daysLeft
+      var isUp = (it.mode === "up")
       var hex = countdown.colorOf(it)
       var textColor = countdown.adaptColor(hex, light)
+      // 简单列表：只要一层很淡的色底（不描边），让彩色数字有归属感，又不至于变成 6 块色板
+      it.lsBg = countdown.tintColor(hex, light ? 0.10 : 0.13)
       it.cardBg = "background-color: " + countdown.tintColor(hex, light ? 0.13 : 0.18)
       it.cardBorder = "border: 1px solid " + countdown.tintColor(hex, light ? 0.45 : 0.55)
 
-      if (it.status === "done") {
-        it.numText = String(-d)
-        it.unitText = "天前"
-        it.heroUnit = "天前"
-        it.daysColor = this.theme.textMuted
-        it.barBg = "background-color: " + this.theme.textMuted
-      } else if (it.status === "today") {
+      // 正计时（mode=up）：起点在过去，天数 = |daysLeft|
+      // 倒数（mode=down）：目标在未来，天数 = daysLeft
+      // 两者共用同一套展示字段，只有 phrase（还有/已经）与是否置灰不同。
+      var n = isUp ? Math.abs(d) : d
+      var done = (!isUp && d < 0)
+      it.isToday = (n === 0)
+      it.status = isUp ? "active" : (done ? "done" : (n === 0 ? "today" : "active"))
+
+      if (it.isToday) {
+        it.phrase = ""
         it.numText = "0"
-        it.unitText = "今天"
-        it.heroUnit = "就是今天"
-        it.daysColor = textColor
-        it.barBg = "background-color: " + textColor
+        it.unitText = "天"
+        it.heroUnit = "天"
+      } else if (isUp) {
+        it.phrase = "已经"
+        it.numText = String(n)
+        it.unitText = "天"
+        it.heroUnit = "天"
+      } else if (done) {
+        it.phrase = "已过"
+        it.numText = String(-d)
+        it.unitText = "天"
+        it.heroUnit = "天"
       } else {
-        it.numText = String(d)
+        it.phrase = "还有"
+        it.numText = String(n)
         it.unitText = "天"
         it.heroUnit = "天后"
-        it.daysColor = textColor
-        it.barBg = "background-color: " + textColor
       }
 
-      it.dateLine = this.dateLine(it.date)
-      // 只放 lunarText 本体（如「八月初八」），不加「农历」前缀：
-      // 24px 下「农历闰四月初十」7 字 = 168px 远超卡内宽 144px 必折行，
-      // 而「闰四月初十」6 字 = 144px 正好放下（ev-six 最小 24，不能再缩）。
-      it.lunarLine = (it.cal === "lunar" && it.lunarText) ? String(it.lunarText) : ""
-      it.lunarColor = it.status === "done" ? this.theme.textMuted : textColor
+      // 字号随位数收敛：2 位以内 44px（ev-six 次大档），3 位以上降到 30px。
+      // 144px 内宽里「还有」48 + 「126」72 + 「天」24 + 间距 = 146 会挤爆，
+      // 降到 30px 后三段共 122px，稳稳放下（已结束条目同理）。
+      it.numSize = (it.numText.length >= 3) ? 30 : 44
+      it.daysColor = (done ? this.theme.textMuted : textColor)
+      it.barBg = "background-color: " + it.daysColor
 
-      var p = countdown.progressOf(it)
-      it.fillPx = Math.max(4, Math.round(144 * p))
-      // hero 卡内宽 = 192 - 2*12(页面) - 2*10(卡内边距) = 148
-      it.heroFillPx = Math.max(4, Math.round(148 * p))
-      var g = it.status === "done" ? 1 : 0
+      var pr = countdown.progressOf(it)
+      it.fillPx = Math.max(4, Math.round(144 * pr))
+      it.heroFillPx = Math.max(4, Math.round(148 * pr))
+      var g = done ? 1 : 0
       it.showDivider = (i > 0 && g !== prevGroup)
       prevGroup = g
     }
@@ -269,7 +276,7 @@ export default {
   // 不需要重新加载数据（hero 用的 numText/heroUnit 在 decorate 里已经算好）
   toggleLayout() {
     const self = this
-    const next = (this.layout === 'hero') ? 'card' : 'hero'
+    const next = (this.layout === 'hero') ? 'list' : 'hero'
     storage.set({
       key: 'cd_layout',
       value: next,
@@ -391,65 +398,82 @@ export default {
   flex-direction: column;
 }
 
-/* 卡片：圆角 16 + 12px 内边距（144 内宽）。底色与描边由条目色派生（见 decorate） */
-.countdown-row {
+/* ---- 版式 A · 简单列表：两行一条，行高约 100px（一屏 3 条）----
+   行高 = 8(上) + 30(标题行) + 2 + 52(天数行) + 10(下) = 102，加 8 间距 = 110/条。
+   144px 内宽里最宽的一行是「还有 + 126 + 天」：用 30px 数字时共 122px，安全。 */
+.ls-row {
   flex-direction: column;
   width: 100%;
   flex-shrink: 0;
-  border-radius: 16px;
-  padding: 10px 12px 12px 12px;
+  border-radius: 14px;
+  padding: 8px 12px 10px 12px;
   margin-bottom: 8px;
 }
 
-.cd-head {
+.ls-line1 {
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
   width: 100%;
   flex-shrink: 0;
 }
 
-/* 标题独占整行，不设 lines —— 长标题自然换行，绝不省略号或被裁切 */
-.cd-title {
+/* 标题占满剩余宽度，长标题在此截断（省略号）而不折行 ——
+   列表版式靠「整齐」立住，一旦折行两行变三行，节奏就散了 */
+.ls-title {
   font-size: 24px;
   line-height: 30px;
+  lines: 1;
   flex: 1;
   min-width: 0;
 }
 
-/* 天数行：卡片的主角。40px 粗体数字 + 20px 单位。
-   三位数「365」≈ 72px + 「天」20px = 92px，144 内宽放得下 */
-.cd-days-row {
+.ls-off {
+  font-size: 24px;
+  line-height: 30px;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.ls-line2 {
   flex-direction: row;
   align-items: flex-end;
   width: 100%;
-  flex-shrink: 0;
   margin-top: 2px;
+  flex-shrink: 0;
 }
 
-/* ev-six 次大档 44：天数是本页唯一的一级信息 */
-.cd-days {
-  font-size: 44px;
+/* 「还有 / 已经 / 已过」：24px 弱色，只做语气，不抢数字 */
+.ls-phrase {
+  font-size: 24px;
+  line-height: 30px;
+  margin-bottom: 9px;
+  flex-shrink: 0;
+}
+
+/* 数字：44px 粗体（ev-six 次大档）。位数 ≥3 时由 decorate 内联降到 30px */
+.ls-num {
+  line-height: 52px;
+  font-weight: bold;
+  margin-left: 3px;
+  flex-shrink: 0;
+}
+
+.ls-unit {
+  font-size: 24px;
+  line-height: 30px;
+  margin-left: 3px;
+  margin-bottom: 9px;
+  flex-shrink: 0;
+}
+
+.ls-today {
+  font-size: 30px;
   line-height: 52px;
   font-weight: bold;
   flex-shrink: 0;
 }
 
-.cd-unit {
-  font-size: 24px;
-  line-height: 30px;
-  margin-left: 4px;
-  margin-bottom: 10px;
-  flex-shrink: 0;
-}
-
-.cd-bar {
-  margin-top: 8px;
-  height: 3px;
-  justify-content: center;
-  width: 100%;
-  flex-shrink: 0;
-}
-
+/* 进度条只剩「大字」版式在用（简单列表刻意不给进度，见模板注释） */
 .cd-bar-track {
   width: 100%;
   height: 3px;
@@ -460,30 +484,6 @@ export default {
 .cd-bar-fill {
   height: 3px;
   border-radius: 2px;
-}
-
-.cd-date {
-  font-size: 24px;
-  line-height: 30px;
-  width: 100%;
-  margin-top: 4px;
-  lines: 1;
-}
-
-/* 农历行：与公历同号同色系，只靠颜色区分主次 */
-.cd-lunar {
-  font-size: 24px;
-  line-height: 30px;
-  width: 100%;
-  margin-top: 1px;
-  lines: 1;
-}
-
-.cd-off-tag {
-  font-size: 24px;
-  line-height: 30px;
-  flex-shrink: 0;
-  margin-left: 6px;
 }
 
 .cd-group-divider {
@@ -597,8 +597,15 @@ export default {
 /* 64px 超出 ev-six 四档，属「主数字＝图形本体」豁免（同课程表表盘 76/104 的处理），
    理由：这一版式存在的唯一目的就是让天数成为整屏视觉主体，压回 44 就与标准卡无差别 */
 .hero-num {
-  font-size: 64px;
-  line-height: 72px;
+  font-size: 72px;
+  line-height: 80px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.hero-today {
+  font-size: 44px;
+  line-height: 80px;
   font-weight: bold;
   text-align: center;
 }
@@ -636,8 +643,8 @@ export default {
   .page {
     padding: 0 20px;
   }
-  .countdown-row {
-    padding: 14px;
+  .ls-row {
+    padding: 12px 14px 12px 14px;
   }
   .actions {
     margin-bottom: 18px;

@@ -19,6 +19,19 @@
       <text class="err-text" if="{{ errMsg.length }}" style="color: {{ theme.deleteText }}">{{ errMsg }}</text>
     </div>
 
+    <!-- 模式：倒数 / 正计时。同一套日期数据，只决定「天数往哪个方向算」：
+         倒数 = 目标在未来，显示「还有 N 天」；正计时 = 起点在过去，显示「已经 N 天」。
+         正计时的常见用法是「大学第几天」「戒烟第几天」这类纪念式计数。 -->
+    <div class="field">
+      <div class="label-row">
+        <text class="field-label" style="color: {{ theme.textSecondary }}">模式</text>
+        <div class="cal-toggle" onclick="toggleMode" style="background-color: {{ theme.border }}">
+          <text class="cal-toggle-text" style="color: {{ theme.accent }}">{{ modeText }}</text>
+          <text class="cal-toggle-arrow" style="color: {{ theme.textMuted }}">⇄</text>
+        </div>
+      </div>
+    </div>
+
     <!-- 日期：官方 picker 内联滚轮（type="text"，手指上下滑动选择）。
          Vela 无原生 date 控件、selector 也不支持多列级联，
          故年/月/日各一列 picker 横向并排，取 e.newSelected（2026-10-21 改）。
@@ -124,6 +137,9 @@ export default {
     delTimer: null,
     // 首页显示（原列表页详情弹层的开关，弹层删除后归本页）
     enabled: true,
+    // 计时方向：down 倒数 / up 正计时（见 countdown.normalizeItem 的 mode 字段）
+    mode: "down",
+    modeText: "倒数",
     // ---- 日期：两套日历真源，切换时整组换算，不做实时双向同步 ----
     // 公历真源（保存值一律由它或农历真源算出，落盘格式不变）
     calendar: "solar",
@@ -267,6 +283,8 @@ export default {
           self.title = items[i].title || ""
           // 老数据没有 enabled 字段一律视为「显示」，与 countdown.normalizeItem 同口径
           self.enabled = items[i].enabled !== false
+          self.mode = (items[i].mode === "up") ? "up" : "down"
+          self.modeText = (self.mode === "up") ? "正计时" : "倒数"
           self.applyDate(items[i].date)
           // 颜色：按 hex 反查调色板下标；旧数据无 color → 保持默认第一档
           var hex = countdown.normalizeColor(items[i].color)
@@ -458,6 +476,12 @@ export default {
 
   // 切换做整组换算一次，而不是两套真源实时互相同步 ——
   // 后者在闰月边界（该年无闰月、29↔30 天）会来回抖动
+  toggleMode() {
+    this.mode = (this.mode === "up") ? "down" : "up"
+    this.modeText = (this.mode === "up") ? "正计时" : "倒数"
+    this.refreshDate()
+  },
+
   toggleCalendar() {
     if (this.calendar === "lunar") {
       var s = lunar.toSolar(this.lyNum, this.lmNum, this.ldNum, this.leapFlag)
@@ -506,12 +530,17 @@ export default {
       this.previewLeft = this.dateStr
     }
     var d = countdown.computeItem(this.dateStr)
-    if (d > 0) {
-      this.daysText = "剩 " + d + " 天"
-      this.daysTextColor = this.theme.accent
-    } else if (d === 0) {
+    if (d === 0) {
       this.daysText = "就是今天"
       this.daysTextColor = "#ff7a45"
+    } else if (this.mode === "up") {
+      // 正计时：起点可以选未来（提前建「开学第几天」），那种情况按 0 处理不显示负数
+      var up = Math.abs(d)
+      this.daysText = "已经 " + up + " 天"
+      this.daysTextColor = this.theme.accent
+    } else if (d > 0) {
+      this.daysText = "还有 " + d + " 天"
+      this.daysTextColor = this.theme.accent
     } else {
       this.daysText = "已过 " + (-d) + " 天"
       this.daysTextColor = this.theme.deleteText
@@ -579,7 +608,8 @@ export default {
         date: self.dateStr,
         cal: self.calendar === "lunar" ? "lunar" : "solar",
         lunarText: self.calendar === "lunar" ? self.lunarShort : "",
-        color: self.colorValue()
+        color: self.colorValue(),
+        mode: self.mode
       }
       if (self.editId) {
         var idx = countdown.findIndexById(items, self.editId)
@@ -590,6 +620,7 @@ export default {
           items[idx].lunarText = patch.lunarText
           items[idx].color = patch.color
           items[idx].enabled = self.enabled
+          items[idx].mode = patch.mode
         }
       } else {
         items.push({
@@ -599,6 +630,7 @@ export default {
           cal: patch.cal,
           lunarText: patch.lunarText,
           color: patch.color,
+          mode: patch.mode,
           enabled: true,
           createdAt: Date.now()
         })
