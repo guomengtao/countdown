@@ -15,18 +15,20 @@
     <div class="list">
       <div class="item" onclick="goNick">
         <text class="it-k">昵称</text>
-        <text class="it-v">{{ nick || '未设置' }}</text>
+        <text class="it-v" if="{{ nick }}">{{ nick }}</text>
+        <text class="it-v" if="{{ !nick }}">未设置</text>
       </div>
       <div class="item" onclick="goPill">
         <text class="it-k">科目</text>
-        <text class="it-v">{{ subj || '未设置' }}</text>
+        <text class="it-v" if="{{ subj }}">{{ subj }}</text>
+        <text class="it-v" if="{{ !subj }}">未设置</text>
       </div>
       <div class="item" onclick="goDiag">
-        <text class="it-k">诊断信息</text>
-        <text class="it-v">查看</text>
+        <text class="it-k">诊断</text>
+        <text class="it-v">打开</text>
       </div>
       <div class="item" onclick="quitApp">
-        <text class="it-k">退出应用</text>
+        <text class="it-k">退出</text>
         <text class="it-v">关闭</text>
       </div>
     </div>
@@ -163,6 +165,7 @@ export default {
   font-size: 24px;
   line-height: 30px;
   color: #ffffff;
+  lines: 1;
 }
 .it-v {
   font-size: 24px;
