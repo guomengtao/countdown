@@ -46,14 +46,18 @@
         <div class="ls-row" if="{{ layout !== 'hero' }}"
              style="background-color: {{ item.lsBg }}; opacity: {{ item.enabled ? 1 : 0.5 }}"
              onclick="openForm(item.id)">
-          <!-- 三列（2026-11-02 用户定案）：①标题+方向词 ②天数 ③「天」
-               左列用 span 拼「高考」+「还有」：两段同段文本、不同色重，
-               这样长标题自然会折到第二行，方向词永远紧跟标题末尾，不会单独飘一行。 -->
-          <text class="ls-title" style="color: {{ theme.text }}"><span>{{ item.title }}</span><span style="color: {{ theme.textMuted }}">{{ item.dirWord }}</span></text>
-          <text if="{{ item.isToday }}" class="ls-today" style="color: {{ item.daysColor }}">今天</text>
-          <text if="{{ !item.isToday }}" class="ls-num"
-                style="color: {{ item.daysColor }}; font-size: {{ item.numSize }}px">{{ item.numText }}</text>
-          <text if="{{ !item.isToday }}" class="ls-unit" style="color: {{ item.daysColor }}">天</text>
+          <!-- 两列（2026-11-02 方案 B）：①标题独占 → 4 字/行 ②数字+「天」竖叠
+               去掉「还有/已经」后标题拿满 96px，8 字长名（数学期末考试）能整条显示。
+               方向语义改由数字前缀承担：正计时「+306」、已过「-5」（并压灰），
+               倒计时不加前缀。为什么不纯用颜色：每条记录的颜色是用户自选的，
+               强行改色会覆盖它，底色 tint 也会跟着打架，所以颜色仍归用户，符号管方向。 -->
+          <text class="ls-title" style="color: {{ theme.text }}">{{ item.title }}</text>
+          <div class="num-box">
+            <text if="{{ item.isToday }}" class="ls-today" style="color: {{ item.daysColor }}">今天</text>
+            <text if="{{ !item.isToday }}" class="ls-num"
+                  style="color: {{ item.daysColor }}; font-size: {{ item.numSize }}px">{{ item.numText }}</text>
+            <text if="{{ !item.isToday }}" class="ls-unit" style="color: {{ item.daysColor }}">天</text>
+          </div>
         </div>
 
         <!-- 版式 B · 沉浸大数字（layout=hero）
@@ -244,12 +248,13 @@ export default {
         it.heroUnit = "天"
       } else if (isUp) {
         it.phrase = "已经"
-        it.numText = String(n)
+        // 方案 B：方向不再写「已经」二字，改用前缀符号 + 已过压灰来表达。
+        it.numText = "+" + n
         it.unitText = "天"
         it.heroUnit = "天"
       } else if (done) {
         it.phrase = "已过"
-        it.numText = String(-d)
+        it.numText = "-" + Math.abs(d)
         it.unitText = "天"
         it.heroUnit = "天"
       } else {
@@ -259,13 +264,10 @@ export default {
         it.heroUnit = "天后"
       }
 
-      // 字号随位数收敛：2 位以内 44px（ev-six 次大档），3 位以上降到 30px。
-      // 144px 内宽里「还有」48 + 「126」72 + 「天」24 + 间距 = 146 会挤爆，
-      // 降到 30px 后三段共 122px，稳稳放下（已结束条目同理）。
-      // 天数列 76px：44px 下三位数「126」≈72px 刚好装下；四位数溢出 → 降到 30px
+      // 字号随位数收敛：2 字符以内 44px（ev-six 次大档），4 字符起降到 30px。
+      // 符号也算字符：「+306」「1234」都是 4 字符 → 30px，60px 宽稳稳装进 68px 数字列。
       it.numSize = (it.numText.length >= 4) ? 30 : 44
-      // 方向词跟在标题后面（不是跟在数字后面）：「高考还有」「2026 已经」。
-      // 用 span 拼在同一段文本里、颜色压暗，长标题折行时它自然跟着走。
+      // dirWord 保留计算（hero 版式/调试仍可能读），但列表版式已不再渲染它。
       it.dirWord = isUp ? "已经" : (done ? "已过" : "还有")
       it.daysColor = (done ? this.theme.textMuted : textColor)
       it.barBg = "background-color: " + it.daysColor
@@ -449,40 +451,35 @@ export default {
   lines: 2;
 }
 
-/* 天数：独占一列，右对齐贴住「天」。44px 粗体（ev-six 次大档）；
-   四位数由 decorate 降到 30px。 */
+/* 天数：不再是独立列，宽度由父级 .num-box 的 68px 给。
+   44px 粗体（ev-six 次大档）；4 字符（+306 / 1234）由 decorate 降到 30px。 */
 .ls-num {
-  /* 84：44px 三位数字实测约 87 逻辑 px，78 会让 126/306 压到标题或右溢被裁。
-     给到 84 后左列 flex 自动收成 56px，仍容得下 2 个 24px 汉字（48px）。 */
-  width: 84px;
-  flex-shrink: 0;
-  line-height: 46px;
+  line-height: 42px;
   font-weight: bold;
   text-align: right;
 }
 
-/* 「天」：独占一列，24px，在 88px 卡高里上下居中（row + align-items:center） */
-.ls-unit {
-  width: 24px;
+/* 数字列：「天」从独立列改到数字正下方（右对齐），省下的 24px 全给标题。
+   68px 是算出来的：44px 两位数 ≈ 58px、30px 的「+306」/「1234」≈ 60px，
+   两种都装得下；line-height 42+24=66 < 88 卡高，垂直居中后上下各留 11px。 */
+.num-box {
+  width: 68px;
   flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* 「天」：数字下方，24px，右对齐与数字右缘齐平 */
+.ls-unit {
   font-size: 24px;
-  /* 与数字同高（46）：flex 的 center 对齐的是盒子高度，
-     盒子矮了文字就视觉沉底。同高后「天」正好在数字垂直中线。 */
-  line-height: 46px;
-  /* 视觉微调：中文字「天」的基线贴近字面框底部，纯盒子居中还偏低，
-     加 8px 下外边距把重心提上来（flex center 下实际位移约 4px） */
-  margin-bottom: 8px;
-  /* 视觉微调：中文字「天」的基线贴近字面框底部，纯盒子居中还偏低，
-     加 8px 下外边距把重心提上来（flex center 下实际位移约 4px） */
-  margin-bottom: 8px;
-  text-align: center;
+  line-height: 24px;
+  font-weight: bold;
+  text-align: right;
 }
 
 .ls-today {
-  width: 108px;
-  flex-shrink: 0;
   font-size: 30px;
-  line-height: 46px;
+  line-height: 42px;
   font-weight: bold;
   text-align: right;
 }
