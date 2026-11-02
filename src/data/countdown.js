@@ -100,27 +100,81 @@ var DEMO_LUNAR_SOLAR = [
 ]
 
 // 取「今天之后最近的八月初八」；表用尽则取最后一条（至少不会变成已过期的负数）
-function demoItems() {
+function demoLunarDate() {
   var today = todayStartMs()
-  var pick = ""
   for (var i = 0; i < DEMO_LUNAR_SOLAR.length; i++) {
     var t = parseDate(DEMO_LUNAR_SOLAR[i])
-    if (t && t.getTime() >= today) {
-      pick = DEMO_LUNAR_SOLAR[i]
-      break
-    }
+    if (t && t.getTime() >= today) return DEMO_LUNAR_SOLAR[i]
   }
-  if (!pick) pick = DEMO_LUNAR_SOLAR[DEMO_LUNAR_SOLAR.length - 1]
-  return [normalizeItem({
-    id: "cd-demo-birthday",
-    title: "我的生日",
-    date: pick,
-    cal: "lunar",
-    lunarText: DEMO_LUNAR_TEXT,
-    color: "#dd6a94",
-    enabled: true,
-    createdAt: Date.now()
-  })]
+  return DEMO_LUNAR_SOLAR[DEMO_LUNAR_SOLAR.length - 1]
+}
+
+// 高考固定在 6 月 7 日，取「今天之后最近的一个」——写死年份的演示数据第二年就过期了
+function demoGaokaoDate() {
+  var today = todayStartMs()
+  var y = new Date().getFullYear()
+  for (var i = 0; i < 20; i++) {
+    var s = (y + i) + "-06-07"
+    var d = parseDate(s)
+    if (d && d.getTime() >= today) return s
+  }
+  return (y + 20) + "-06-07"
+}
+
+// 相对今天偏移 offsetDays 的日期串（负数=过去）；演示数据只用它算起点，不参与展示
+function offsetDateStr(offsetDays) {
+  var d = new Date(todayStartMs() + offsetDays * 86400000)
+  var m = d.getMonth() + 1
+  var dd = d.getDate()
+  return d.getFullYear() + "-" + (m < 10 ? "0" + m : m) + "-" + (dd < 10 ? "0" + dd : dd)
+}
+
+// 演示数据：3 条，一条只讲一件事，且都贴着学生的真实场景——
+//   高考冲刺 → 未来目标（倒数 + 进度条）
+//   背单词   → 已经坚持了多少天（正计时，文案落在「N 天前」）
+//   我的生日 → 农历录入与卡片上的农历行回显
+// 为什么不是 1 条：单看一条分不出「倒数 / 正计时」两种模式的区别，
+// 也看不出多条并排时标题、数字、单位三列的排版会不会打架。
+// 为什么不是 5 条以上：192 屏一屏只放得下 3 条，Demo 撑出滚动条反而像数据没清干净。
+//
+// ⚠️ 标题一律控制在 4 个汉字以内：卡片内标题列只有 96px，
+// 实测 5 字（如「高考倒计时」）会折成两行、把卡片撑高。
+// 这是版式现状（不是本函数能修的），演示数据不该撞上去。
+function demoItems() {
+  var today = todayStartMs()
+  return [
+    normalizeItem({
+      id: "cd-demo-gaokao",
+      title: "高考冲刺",
+      date: demoGaokaoDate(),
+      color: "#e0894a",
+      enabled: true,
+      mode: "down",
+      // 备考起点取「今天往前 90 天」：进度条一开始就有一小段，
+      // 既不贴满（假），也不是空的（看不出这是进度条）
+      createdAt: today - 90 * 86400000
+    }),
+    normalizeItem({
+      id: "cd-demo-words",
+      title: "背单词",
+      date: offsetDateStr(-100),
+      color: "#3aa87a",
+      enabled: true,
+      mode: "up",
+      // 起点与 createdAt 同日：正计时条目进度条本来就该满（坚持到今天的完整跨度）
+      createdAt: today - 100 * 86400000
+    }),
+    normalizeItem({
+      id: "cd-demo-birthday",
+      title: "我的生日",
+      date: demoLunarDate(),
+      cal: "lunar",
+      lunarText: DEMO_LUNAR_TEXT,
+      color: "#dd6a94",
+      enabled: true,
+      createdAt: Date.now()
+    })
+  ]
 }
 
 function emptyObject() {

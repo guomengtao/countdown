@@ -54,13 +54,21 @@ import app from '@system.app'
 import theme from '../../data/theme.js'
 import countdown from '../../data/countdown.js'
 
+/* 「清空数据」的三秒确认窗口用**模块级变量**记，不用 this / data。
+ *
+ * 依据（2026-11-03 探针实测）：两次相隔 0.7s 的点击都进了「第一次」分支
+ * （日志 c1-entry → c3-armed 重复两轮）——this 上的写入不跨事件保留；
+ * 改模块级变量后同样两轮都进 arm 分支，说明模块上下文也不跨事件共享。
+ * 因此确认标记只能落 storage：它是这里唯一跨事件可靠共享的介质。 */
+const ARM_KEY = 'cd_clear_arm'
+let armTimer = null
+
 export default {
   data: {
     ver: '0.0.1',
     nick: '',
     themeName: '经典黑',
     clearConfirm: false,
-    clearTimer: null,
     theme: {}
   },
 
@@ -82,22 +90,33 @@ export default {
   // 清空全部：3 秒内再点一次才真删（与首页旧逻辑同一口径）
   clearAll() {
     const self = this
-    if (this.clearConfirm) {
-      countdown.save([], function () {
+    const now = Date.now()
+    function arm() {
+      storage.set({ key: ARM_KEY, value: String(now) })
+      self.clearConfirm = true
+      if (armTimer) clearTimeout(armTimer)
+      armTimer = setTimeout(function () {
         self.clearConfirm = false
-      })
-      if (this.clearTimer) {
-        clearTimeout(this.clearTimer)
-        this.clearTimer = null
-      }
-      return
+        armTimer = null
+      }, 3000)
     }
-    this.clearConfirm = true
-    if (this.clearTimer) clearTimeout(this.clearTimer)
-    this.clearTimer = setTimeout(function () {
-      self.clearConfirm = false
-      self.clearTimer = null
-    }, 3000)
+    storage.get({
+      key: ARM_KEY,
+      success: function (v) {
+        const at = parseInt(v, 10) || 0
+        if (at && now - at < 3000) {
+          storage.delete({ key: ARM_KEY })
+          countdown.save([], function () {
+            router.back()
+          })
+          return
+        }
+        arm()
+      },
+      fail: function () {
+        arm()
+      }
+    })
   },
 
   loadTheme() {

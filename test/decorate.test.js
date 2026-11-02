@@ -24,13 +24,23 @@ var Module = require("module")
 
 /* ── 给 `@system.storage` 打桩，让真实数据层能 require ── */
 
+// 打桩签名必须与线上 Vela API 一致，否则测的是「假行为」：
+//   真实 get 的 success 收到的是**值本身**（字符串），set 的入参是 { key, value }。
+// 2026-11-02 修正：此前写成 success({key,data}) / set({key,data})，与线上不符，
+// 只测纯函数时看不出来，一旦走 load/save 就会与真机分道扬镳。
 var STORE = {}
 var origLoad = Module._load
 Module._load = function(request) {
   if (request === "@system.storage") {
     return {
-      get: function(o) { if (o && o.success) o.success({ key: o.key, data: STORE[o.key] }) },
-      set: function(o) { if (o) STORE[o.key] = o.data; if (o && o.success) o.success() },
+      get: function(o) {
+        if (!o) return
+        // 键不存在时 Vela 的回调分支并不稳定（可能 success("") 也可能 fail），
+        // 这里按「有值才 success」模拟最坏情况，让迁移/全新安装分支都被覆盖到。
+        var v = STORE[o.key]
+        if (v === undefined) { if (o.fail) o.fail() } else if (o.success) { o.success(v) }
+      },
+      set: function(o) { if (o) STORE[o.key] = o.value; if (o && o.success) o.success() },
       delete: function(o) { if (o) delete STORE[o.key]; if (o && o.success) o.success() }
     }
   }
@@ -213,6 +223,67 @@ var one = run([item(100)])[0]
   "daysColor", "barBg", "fillPx", "heroFillPx", "status", "isToday"].forEach(function(k) {
   truthy("字段 " + k + " 已赋值", one[k] !== undefined && one[k] !== "")
 })
+
+/* ── 8. 全新安装的演示数据 ───────────────────────── */
+
+console.log("\n8. 演示数据：3 条学生向 demo")
+
+function freshLoad() {
+  Object.keys(STORE).forEach(function(k) { delete STORE[k] })
+  var got = null
+  countdown.load(function(res) { got = res })
+  return got
+}
+
+var demoRes = freshLoad()
+var demo = demoRes.items
+countdown.recompute(demo)
+
+eq("首次 load 标记为 demo", demoRes.source, "demo")
+eq("演示条目共 3 条", demo.length, 3)
+eq("id 不重复", demo.filter(function(it, i) {
+  return demo.findIndex(function(x) { return x.id === it.id }) === i
+}).length, 3)
+
+var ups = demo.filter(function(it) { return it.mode === "up" })
+var downs = demo.filter(function(it) { return it.mode !== "up" })
+var lunars = demo.filter(function(it) { return it.cal === "lunar" })
+eq("有 1 条正计时（展示「N 天前」）", ups.length, 1)
+eq("有 2 条倒数", downs.length, 2)
+eq("有 1 条农历（展示农历行回显）", lunars.length, 1)
+
+truthy("倒数条目装了就不该已过期", downs.every(function(it) { return it.daysLeft >= 0 }))
+truthy("正计时天数落在过去", ups[0].daysLeft < 0)
+eq("正计时正好 100 天", Math.abs(ups[0].daysLeft), 100)
+// 4 字上限来自真机版式，不是随便定的：卡片标题列 96px，
+// 模拟器实测 5 字（「高考倒计时」）会折成两行、把卡片撑高
+truthy("标题都非空且不超过 4 字（96px 标题列放得下，5 字实测折行）", demo.every(function(it) {
+  return it.title.length > 0 && it.title.length <= 4
+}))
+truthy("颜色全在允许的 6 色内", demo.every(function(it) {
+  return countdown.COLORS.some(function(c) { return c.hex === it.color })
+}))
+
+// 演示数据必须「先落盘再回调」，否则每次冷启动都会重种一遍
+truthy("已写进存储", typeof STORE[countdown.V2_KEY] === "string")
+eq("落盘条目数", JSON.parse(STORE[countdown.V2_KEY]).items.length, 3)
+var second = null
+countdown.load(function(res) { second = res })
+eq("二次 load 不再重种（source=v2）", second.source, "v2")
+eq("二次 load 仍是 3 条", second.items.length, 3)
+
+/* ── 9. 清空后不许复种 ─────────────────────────── */
+
+console.log("\n9. 清空数据后不会被 demo 重新填满")
+
+// 设置页「清空数据」走 countdown.save([])，落盘的是 { version:2, items:[] }。
+// 这里钉住一件事：下次 load 必须返回空数组，而不是把它当成「全新安装」又种一遍 demo
+// —— 那会让用户的清空操作看起来完全无效。
+countdown.save([])
+var cleared = null
+countdown.load(function(res) { cleared = res })
+eq("清空后 load 返回 0 条", cleared.items.length, 0)
+eq("清空后 source 为 v2（不触发 demo 分支）", cleared.source, "v2")
 
 /* ── 结果 ───────────────────────────────────────── */
 

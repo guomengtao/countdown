@@ -1,8 +1,8 @@
 {
   "package": "com.application.watch.countdown",
   "name": "Ev倒数日",
-  "versionName": "0.6.3",
-  "versionCode": 142,
+  "versionName": "0.6.12",
+  "versionCode": 151,
   "minPlatformVersion": 1050,
   "icon": "/logo.png",
   "deviceTypeList": [
