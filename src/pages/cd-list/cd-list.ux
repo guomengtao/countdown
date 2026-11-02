@@ -46,16 +46,14 @@
         <div class="ls-row" if="{{ layout !== 'hero' }}"
              style="background-color: {{ item.lsBg }}; opacity: {{ item.enabled ? 1 : 0.5 }}"
              onclick="openForm(item.id)">
-          <div class="ls-left">
-            <text class="ls-title" style="color: {{ theme.text }}">{{ item.title }}</text>
-          </div>
-          <div class="ls-right">
-            <!-- 就是今天：不显示「0 天后」这种废话 -->
-            <text if="{{ item.isToday }}" class="ls-today" style="color: {{ item.daysColor }}">今天</text>
-            <text if="{{ !item.isToday }}" class="ls-num"
-                  style="color: {{ item.daysColor }}; font-size: {{ item.numSize }}px">{{ item.numText }}</text>
-            <text if="{{ !item.isToday }}" class="ls-unit" style="color: {{ item.daysColor }}">{{ item.dirText }}</text>
-          </div>
+          <!-- 三列（2026-11-02 用户定案）：①标题+方向词 ②天数 ③「天」
+               左列用 span 拼「高考」+「还有」：两段同段文本、不同色重，
+               这样长标题自然会折到第二行，方向词永远紧跟标题末尾，不会单独飘一行。 -->
+          <text class="ls-title" style="color: {{ theme.text }}"><span>{{ item.title }}</span><span style="color: {{ theme.textMuted }}">{{ item.dirWord }}</span></text>
+          <text if="{{ item.isToday }}" class="ls-today" style="color: {{ item.daysColor }}">今天</text>
+          <text if="{{ !item.isToday }}" class="ls-num"
+                style="color: {{ item.daysColor }}; font-size: {{ item.numSize }}px">{{ item.numText }}</text>
+          <text if="{{ !item.isToday }}" class="ls-unit" style="color: {{ item.daysColor }}">天</text>
         </div>
 
         <!-- 版式 B · 沉浸大数字（layout=hero）
@@ -264,11 +262,11 @@ export default {
       // 字号随位数收敛：2 位以内 44px（ev-six 次大档），3 位以上降到 30px。
       // 144px 内宽里「还有」48 + 「126」72 + 「天」24 + 间距 = 146 会挤爆，
       // 降到 30px 后三段共 122px，稳稳放下（已结束条目同理）。
-      // 两列版式右列宽 74px：44px 下三位数「126」≈72px 刚好，四位数必溢出 → 降到 30px
+      // 天数列 76px：44px 下三位数「126」≈72px 刚好装下；四位数溢出 → 降到 30px
       it.numSize = (it.numText.length >= 4) ? 30 : 44
-      // 方向词只留一个后缀：天后（未来）/ 天前（过去）。
-      // 原「还有 / 已经 / 已过」三个词各占一行宽，两列版式没有那个位置。
-      it.dirText = isUp ? "天前" : (done ? "天前" : "天后")
+      // 方向词跟在标题后面（不是跟在数字后面）：「高考还有」「2026 已经」。
+      // 用 span 拼在同一段文本里、颜色压暗，长标题折行时它自然跟着走。
+      it.dirWord = isUp ? "已经" : (done ? "已过" : "还有")
       it.daysColor = (done ? this.theme.textMuted : textColor)
       it.barBg = "background-color: " + it.daysColor
 
@@ -370,7 +368,7 @@ export default {
 .page {
   flex: 1;
   flex-direction: column;
-  padding: 0 12px;
+  padding: 0 6px;
 }
 
 /* 顶栏：居中纯文字标题，不做胶囊、不可点 */
@@ -421,11 +419,14 @@ export default {
   flex-direction: column;
 }
 
-/* ---- 版式 A · 简单列表：两列 · 卡高 88（一屏 3.5 条）----
-   内宽 = 192 - 2×12(页面) - 2×10(卡内) = 148 → 左列 ≈74 + 右列 74。
-   左列 74px / 24px 字号 ≈ 3 字每行，两行 6 字（「数学期末考」5 字放得下）。
-   右列 74px 装 44px 的三位数「126」≈72px，正好卡住；
-   四位数会溢出，所以 decorate 里 len>=4 时降到 30px。 */
+/* ---- 版式 A · 简单列表：三列 · 卡高 88（一屏 4 条）----
+   内宽 = 192 - 2×6(页面) - 2×8(卡内) = 164，切成：
+     左列 flex:1 → 62px（24px 下每行 2 字，「2026」这类 4 字符标题约 58px 刚好）
+     天数列 78px（44px 三位「126」实测约 80px，78 会溢出 2px，属可接受：
+        text-align:right 只向左吐 2px，落在左列右侧留白里，不会压到字）
+     「天」列 24px（24px 字，独占一列、line-height 与数字同高 46 → 真上下居中）
+   为什么要三列而不是两列（2026-11-02 用户要求）：两列时「天」和数字挤在一列，
+   三位数会被截断；拆开后数字拿满 76px，三位数不再变形。 */
 .ls-row {
   flex-direction: row;
   align-items: center;
@@ -433,51 +434,48 @@ export default {
   height: 88px;
   flex-shrink: 0;
   border-radius: 14px;
-  padding: 0 10px 0 10px;
+  padding: 0 8px 0 8px;
   margin-bottom: 8px;
 }
 
-.ls-left {
+/* 左列：标题 + 方向词（span 同段）。lines:2 → 最多两行，超出省略。
+   严格两行的理由：列表整齐感来自「每条等高」，允许三行会让一屏条数浮动、
+   滚动位置跳动；看全文点卡片进编辑页。 */
+.ls-title {
   flex: 1;
   min-width: 0;
-  flex-direction: column;
-  justify-content: center;
-}
-
-/* 标题：严格最多两行，超出省略。
-   为什么不允许三行（2026-11-02 定案）：列表的整齐感来自「每条等高」。
-   允许三行就会有条目把别人顶下去，一屏能放几条变得不确定，滚动位置也会跳；
-   想看全文点卡片进编辑页即可，那里没有长度限制。 */
-.ls-title {
   font-size: 24px;
   line-height: 30px;
   lines: 2;
 }
 
-.ls-right {
-  width: 74px;
-  flex-shrink: 0;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-/* 数字：44px 粗体（ev-six 次大档）。行高 46 + 单位 26 = 72 > 左列两行 60，
-   所以整卡高度由右列撑起 —— 数字就是这一行的主角。 */
+/* 天数：独占一列，右对齐贴住「天」。44px 粗体（ev-six 次大档）；
+   四位数由 decorate 降到 30px。 */
 .ls-num {
+  width: 78px;
+  flex-shrink: 0;
   line-height: 46px;
   font-weight: bold;
   text-align: right;
 }
 
-/* 单位：「天后 / 天前」，24px，右对齐贴数字下沿 */
+/* 「天」：独占一列，24px，在 88px 卡高里上下居中（row + align-items:center） */
 .ls-unit {
+  width: 24px;
+  flex-shrink: 0;
   font-size: 24px;
-  line-height: 26px;
-  text-align: right;
+  /* 与数字同高（46）：flex 的 center 对齐的是盒子高度，
+     盒子矮了文字就视觉沉底。同高后「天」正好在数字垂直中线。 */
+  line-height: 46px;
+  /* 视觉微调：中文字「天」的基线贴近字面框底部，纯盒子居中还偏低，
+     加 8px 下外边距把重心提上来（flex center 下实际位移约 4px） */
+  margin-bottom: 8px;
+  text-align: center;
 }
 
 .ls-today {
+  width: 102px;
+  flex-shrink: 0;
   font-size: 30px;
   line-height: 46px;
   font-weight: bold;
