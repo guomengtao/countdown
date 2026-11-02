@@ -67,7 +67,50 @@ UTExportedTypeDeclarations: UTTypeIdentifier = moe.astralsight.astrobox.rpk（co
 4. **不要等「看起来没反应」就换方案**：先截一张全分辨率图确认窗口在哪、队列里有没有东西，
    再决定下一步——上面第 1 条就是「以为入口无效，其实是窗口在屏幕外」。
 
-## 一句话脚本（推荐直接抄）
+## 起名：`ev-install`（别名 `ev-ab` / `ev-rpk`）
+
+这个方案固化成脚本：`~/.workbuddy/scripts/ev-install.sh`。
+
+**为什么叫 `ev-install`**——`ev-*` 一族现有脚本全是「ev + 动词」：`ev-claim`、`ev-commit`、
+`ev-shot`、`ev-morning-cut`、`ev-task-close`。`ev-install` 沿这条线，一眼知道是「装东西」，
+以后要装 apk / 固件也能复用同一个入口。其余候选的取舍：
+
+| 候选 | 评价 |
+|---|---|
+| **`ev-install`** ✅ | 动词族一致，语义直白，可扩展 |
+| `ev-ab` | 短、好敲，但 `AB` 容易被误读成 A/B 测试；留作**别名** |
+| `ev-rpk` | 名词型，专指性强；留作**别名** |
+| `ev-run` | 太泛，和「跑脚本/跑测试」撞 |
+| `ev-ast` | 太隐晦，不像中文语境的词 |
+
+三个名字指向同一个脚本（后两个是软链），敲哪个都行。
+
+## 用法
+
+```bash
+ev-install                 # 自动取 ./dist 或 ./ 下最新的 .rpk
+ev-install path/to/x.rpk   # 指定文件
+ev-install -w 25           # 投喂后等 25 秒（默认 0，不等，立即返回）
+ev-install -l              # 只列候选 rpk
+ev-install -c              # 只做环境自检：App / 进程 / 蓝牙里的手环
+```
+
+`ev-install` 帮你做了四件事：找 App（`/Applications/AstroBox 2.app` → `AstroBox.app` →
+`~/Applications/*` 依次探测）、把文件复制成 ASCII 名 `/tmp/ev-install.rpk`、用 `open -a`
+投喂、打印从文件名解析出的版本号与体积。
+
+自检输出示例（实测）：
+
+```
+── 环境自检 ──
+✅ AstroBox: /Applications/AstroBox 2.app
+✅ AstroBox 进程在跑 (pid 94369)
+✅ 蓝牙可见手环：
+               Xiaomi Smart Band 9 B885:
+                   Address: 04:34:C3:06:B8:85
+```
+
+## 不想用脚本时的等价一行
 
 ```bash
 RPK=dist/com.application.watch.countdown.release.0.0.100.rpk
