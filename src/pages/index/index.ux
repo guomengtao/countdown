@@ -129,7 +129,8 @@ export default {
     swiped: false,
     sheet: false,
     left: 5,
-    timer: null
+    timer: 0,
+    holdTimer: 0
   },
 
   onInit() {
@@ -205,10 +206,26 @@ export default {
       this.armed = true
       this.swiped = true      // 唯一一次 setData：提示行变蓝
       this.buzz()             // 唯一一次震动：手环上比颜色更即时
+
+      // 手指停住不松 = 用户在犹豫「这条手势通向哪」→ 400ms 后弹提示卡。
+      // 快速一滑不会触发（手指早就离开了），所以不打扰老手。
+      const self = this
+      this.holdTimer = setTimeout(function () {
+        self.holdTimer = null
+        self.openSheet()
+      }, 400)
     }
   },
 
   onTouchEnd() {
+    if (this.holdTimer) {
+      clearTimeout(this.holdTimer)
+      this.holdTimer = null
+    }
+
+    // 弹窗已经弹出来了：松手不再自动跳转，让用户看/选（倒计时自己会关）
+    if (this.sheet) return
+
     const dx = this.lx - this.tx
     const armed = this.armed
     this.armed = false
@@ -322,10 +339,13 @@ export default {
   flex-direction: column;
 }
 /* 主页：原来挂在 .page 上的布局全部挪进来。
-   .page 退成纯容器，是为了让弹窗和主页做「互斥渲染」时不互相挤压 */
+   .page 退成纯容器，是为了让弹窗和主页做「互斥渲染」时不互相挤压。
+   ⚠️ 必须 flex:1，不能 height:100% —— Vela 里 height:100% 给不出确定的尺寸约束，
+   子元素算不出高度（class-schedule backup-restore 页 2026-11-02 踩过同样的坑，
+   表现是整块塌成 0、弹窗根本不显示）。 */
 .home {
+  flex: 1;
   width: 100%;
-  height: 100%;
   flex-direction: column;
   align-items: center;
   padding-top: 10px;
@@ -454,21 +474,23 @@ export default {
    全屏黑底 + 居中圆角卡片，靠 if 切换达成「盖住首页」的观感。
    192px 宽的屏上卡片取 176，左右各留 8px 呼吸。 */
 .sheet {
+  flex: 1;
   width: 100%;
-  height: 100%;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  padding: 12px;
   background-color: #000000;
 }
 
+/* 结构照抄 class-schedule 的 backup-restore .sheet-card：
+   宽度交给父容器 padding 决定（写死 176 会顶出 168 的可用宽） */
 .card {
-  width: 176px;
+  width: 100%;
   flex-direction: column;
   align-items: center;
-  padding-top: 14px;
-  padding-bottom: 6px;
-  border-radius: 20px;
+  padding: 14px 10px 10px 10px;
+  border-radius: 18px;
   background-color: #1c1c1e;
 }
 
@@ -497,7 +519,7 @@ export default {
 }
 
 .sep {
-  width: 148px;
+  width: 100%;
   height: 1px;
   margin-top: 10px;
   margin-bottom: 8px;
@@ -511,7 +533,7 @@ export default {
   flex-shrink: 0;
 }
 .row {
-  width: 148px;
+  width: 100%;
   margin-top: 6px;
   flex-direction: row;
   justify-content: space-between;
@@ -537,7 +559,7 @@ export default {
   flex-shrink: 0;
 }
 .cbtn {
-  width: 76px;
+  width: 70px;
   height: 44px;
   border-radius: 22px;
   background-color: #3a3a3c;
