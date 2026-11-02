@@ -25,13 +25,7 @@
       </div>
     </div>
 
-    <!-- 系统输入法机型（手机/平板等）：用原生 input，由系统弹键盘 -->
-    <div class="disp" if="{{ sysIme }}">
-      <input class="sys-input" type="text" value="{{ text }}" maxlength="{{ maxLen }}"
-             placeholder="{{ placeholder }}" onchange="onSysInput" />
-    </div>
-    <!-- 手环等无系统输入法的机型：自绘文本，字符由 input-method 组件送入 -->
-    <div class="disp" if="{{ !sysIme }}">
+    <div class="disp">
       <text class="txt" if="{{ text.length }}">{{ text }}</text>
       <text class="ph" if="{{ !text.length }}">{{ placeholder }}</text>
     </div>
@@ -40,19 +34,28 @@
       <text class="ok-t">保存</text>
     </div>
 
-    <div class="ime-host" if="{{ imeOn }}">
+    <!-- 键盘区：与 class-schedule/pages/chinese-input 完全同构 ——
+         ① 无条件挂载：不加 if、不延迟 setTimeout、不做机型分支。
+            chinese-input 的注释写明：曾用 hide=true 延迟一帧展开，会让组件 onInit
+            时跳过词典初始化，表现为「英文能打、中文无候选」；而且延迟期间一旦
+            有任何异步分支把 imeOn 留在 false，用户看到的就是「一个键盘都没有」。
+            本应用 0.1.1/0.2.0 两次「输入法没加载」都出在这个延迟上。
+         ② screentype 取 device.getInfo().screenShape，capsule 映射成 rect
+            （212×520 上 pill-shaped 打不开，手环 11 真机七形态对照实测）。
+         ③ 宿主必须是普通 div，不能是 scroll：scroll 不拉伸子元素，
+            组件内部 position:absolute;bottom:0;width:100% 会退化到内容宽，
+            键盘塌缩到左下角。 -->
+    <div class="ime-host">
       <input-method
         hide="{{ false }}"
         keyboardtype="QWERTY"
         maxlength="{{ maxLen }}"
         vibratemode="short"
-        screentype="rect"
-        dictionarypath="/components/InputMethod/assets/dictionary/"
+        screentype="{{ screenType }}"
         oncomplete="onChar"
         ondelete="onDel"
       ></input-method>
     </div>
-    <div class="ime-gap" if="{{ !imeOn }}"></div>
   </div>
 </template>
 
@@ -69,27 +72,20 @@ export default {
     placeholder: '输入名称',
     text: '',
     maxLen: 6,
-    imeOn: false,
-    sysIme: false,        // true = 交给系统输入法，不挂自绘键盘
+    screenType: 'rect',   // 默认 rect：getInfo 是异步的，回调前会先渲染一帧
     returnKey: DEFAULT_RETURN_KEY
   },
 
   onInit() {
     const self = this
-    // 输入法按机型自动选择：
-    //   手环（deviceType === 'watch'）没有系统输入法，只能用应用内自绘键盘；
-    //   手机/平板/车机等有系统输入法，交给系统弹，不再叠一层自绘键盘（那样
-    //   等于逼用户用小键盘打字）。
-    // getInfo 失败或字段缺失时保持默认 false —— 退回自绘键盘这条已真机验证的路，
-    // 不会出现「两边都不弹、输不了字」的死局。
-    // ⚠️ 必须用「白名单」而不是「不是 watch 就当有系统输入法」：
-    // 手环真机回上来的 deviceType 未必是 'watch'（可能是 band/wearable/watch9 等），
-    // 用排除法会把真手环误判成有系统输入法 → 自绘键盘不挂 → 一个键盘都没有（0.1.1 实测）。
-    // 只有明确属于「带系统输入法的设备」才走原生 input，其余一律自绘。
+    // 键盘形态只跟屏幕形状走，不跟 deviceType 走（deviceType 各家固件回的值不统一，
+    // 0.1.1 就是靠它分支把自己坑成「没有键盘」的）。
+    // capsule 必须映射成 rect：手环 11 真机七形态对照，pill-shaped / circle 全部打不开。
     device.getInfo({
-      success: function (info) {
-        var t = ((info && info.deviceType) || '').toLowerCase()
-        self.sysIme = ['phone', 'tablet', 'tv', 'car', '2in1'].indexOf(t) >= 0
+      success: function (data) {
+        var shape = (data && data.screenShape) || 'rect'
+        if (shape === 'capsule' || shape === 'circle') shape = 'rect'
+        self.screenType = shape
       },
       fail: function () {}
     })
@@ -124,31 +120,12 @@ export default {
     })
   },
 
-  onReady() {
-    const self = this
-    // 关键：首帧挂载键盘会被静默丢弃（nickname 页实测）
-    // 系统输入法机型不挂自绘键盘，只保留输入框
-    setTimeout(function () {
-      if (!self.sysIme) self.imeOn = true
-    }, 300)
-  },
-
   onChar(evt) {
     const c = (evt && evt.detail && evt.detail.content) || ''
     if (!c) return
     const max = this.maxLen
     const next = this.text + c
     this.text = next.length > max ? next.slice(0, max) : next
-  },
-
-  // 原生 input 的取值：Vela 的 onchange 回调形如 { value }
-  onSysInput(evt) {
-    var v = (evt && evt.value)
-    if (v === undefined && evt && evt.detail) v = evt.detail.value
-    if (v === undefined) v = ''
-    var max = this.maxLen
-    v = String(v)
-    this.text = v.length > max ? v.slice(0, max) : v
   },
 
   onDel() {
@@ -208,14 +185,6 @@ export default {
   lines: 1;
 }
 
-.sys-input {
-  width: 100%;
-  height: 56px;
-  font-size: 30px;
-  color: #ffffff;
-  background-color: transparent;
-}
-
 .disp {
   width: 176px;
   height: 52px;
@@ -262,8 +231,5 @@ export default {
   flex-direction: column;
 }
 
-.ime-gap {
-  flex: 1;
-  width: 100%;
-}
+
 </style>
