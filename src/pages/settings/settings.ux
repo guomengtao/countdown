@@ -13,21 +13,14 @@
     </div>
 
     <div class="list">
-      <!-- 倒数日排第一：它是本应用的主功能，不是配置项；
-           放在这里是因为设置页是所有页面的索引，位置固定好找 -->
-      <div class="item" style="background-color: {{ theme.card }}" onclick="goCdList">
-        <text class="it-k" style="color: {{ theme.text }}">倒数日</text>
-        <text class="it-v">打开</text>
-      </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="goTheme">
         <text class="it-k" style="color: {{ theme.text }}">主题</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}">{{ themeName }}</text>
       </div>
-      <!-- 列表版式：点击直接切换（只有两个值，不需要子页面）。
-           存 storage key cd_layout，cd-list 在 onShow/onInit 读取 -->
-      <div class="item" style="background-color: {{ theme.card }}" onclick="toggleLayout">
-        <text class="it-k" style="color: {{ theme.text }}">版式</text>
-        <text class="it-v" style="color: {{ theme.textSecondary }}">{{ layoutName }}</text>
+      <!-- 清空：低频 + 危险，所以从首页下沉到这里，并且带 3 秒二次确认。
+           首页工具行右边那个位置让给「版式」切换（高频轻操作）。 -->
+      <div class="item" style="background-color: {{ theme.card }}" onclick="clearAll">
+        <text class="it-k" style="color: {{ clearConfirm ? theme.deleteText : theme.text }}">{{ clearConfirm ? '确认清空' : '清空数据' }}</text>
       </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="goNick">
         <text class="it-k" style="color: {{ theme.text }}">昵称</text>
@@ -63,6 +56,7 @@ import router from '@system.router'
 import storage from '@system.storage'
 import app from '@system.app'
 import theme from '../../data/theme.js'
+import countdown from '../../data/countdown.js'
 
 export default {
   data: {
@@ -70,8 +64,8 @@ export default {
     nick: '',
     subj: '',
     themeName: '经典黑',
-    layout: 'card',
-    layoutName: '标准',
+    clearConfirm: false,
+    clearTimer: null,
     theme: {}
   },
 
@@ -81,42 +75,34 @@ export default {
       if (info && info.versionName) this.ver = info.versionName
     } catch (e) {}
     this.loadTheme()
-    this.loadLayout()
     this.loadAll()
   },
 
   onShow() {
     // 从主题页返回要重读：否则条目上还显示旧主题名
     this.loadTheme()
-    this.loadLayout()
     this.loadAll()
   },
 
-  loadLayout() {
+  // 清空全部：3 秒内再点一次才真删（与首页旧逻辑同一口径）
+  clearAll() {
     const self = this
-    storage.get({
-      key: 'cd_layout',
-      success: function (v) { self.applyLayout(v) },
-      fail: function () { self.applyLayout('card') }
-    })
-  },
-
-  applyLayout(v) {
-    this.layout = (v === 'hero') ? 'hero' : 'card'
-    // 值只给 2-3 字：24px 下「列表样式」+「标准卡」= 168px 已顶满 168px 行内宽，
-    // 实测会折成两行（2026-11-02 版面还原图），所以键名压到「版式」、值压到「标准/大字」
-    this.layoutName = (this.layout === 'hero') ? '大字' : '标准'
-  },
-
-  toggleLayout() {
-    const self = this
-    const next = this.layout === 'hero' ? 'card' : 'hero'
-    storage.set({
-      key: 'cd_layout',
-      value: next,
-      success: function () { self.applyLayout(next) },
-      fail: function () { self.applyLayout(next) }
-    })
+    if (this.clearConfirm) {
+      countdown.save([], function () {
+        self.clearConfirm = false
+      })
+      if (this.clearTimer) {
+        clearTimeout(this.clearTimer)
+        this.clearTimer = null
+      }
+      return
+    }
+    this.clearConfirm = true
+    if (this.clearTimer) clearTimeout(this.clearTimer)
+    this.clearTimer = setTimeout(function () {
+      self.clearConfirm = false
+      self.clearTimer = null
+    }, 3000)
   },
 
   loadTheme() {
@@ -152,10 +138,6 @@ export default {
   goBack() {
     router.back()
   },
-  goCdList() {
-    router.push({ uri: '/pages/cd-list' })
-  },
-
   goTheme() {
     router.push({ uri: '/pages/theme' })
   },
@@ -216,9 +198,10 @@ export default {
 }
 
 /* 条目行：宽 168 居中（192 屏左右各留 12）。
-   8 项 × 48 = 384，加页头 72 与版号 30 = 486 < 490，192×490 屏不出滚动条。
-   行高演进：6 项 52/8 → 7 项(加手势) 46/5 → 8 项(加列表样式) 44/4。
-   ⚠️ 再加条目就会溢出，届时必须把 .list 换成 scroll 容器。 */
+   7 项 × 54 = 378，加页头 72 与版号 30 = 480 < 490，192×490 屏不出滚动条。
+   演变：6 项 52/8 → 8 项 44/4 → 删掉冗余「倒数日」后回到 7 项，放宽到 48/6。
+   ⚠️ 再加到 9 项就会溢出，届时必须把 .list 换成 scroll 容器
+   （参照 theme.ux：scroll 要同时有 flex-direction:column 与确定高度）。 */
 .list {
   width: 168px;
   margin-top: 12px;
@@ -227,8 +210,8 @@ export default {
 }
 .item {
   width: 100%;
-  height: 44px;
-  margin-bottom: 4px;
+  height: 48px;
+  margin-bottom: 6px;
   padding-left: 14px;
   padding-right: 12px;
   border-radius: 14px;

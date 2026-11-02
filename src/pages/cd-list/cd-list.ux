@@ -20,8 +20,11 @@
          iOS 风格的列表页不放常驻按钮，操作降为弱提示不抢视线。 -->
     <div class="toolbar" if="{{ countdownList.length > 0 }}">
       <text class="toolbar-link" onclick="toggleSort" style="color: {{ theme.textSecondary }}">{{ sortRecent ? '按时间' : '按名称' }}</text>
-      <text class="toolbar-link" onclick="clearAll"
-            style="color: {{ clearAllConfirm ? theme.deleteText : theme.textMuted }}">{{ clearAllConfirm ? '确认清空' : '清空' }}</text>
+      <!-- 右侧是「版式」切换而不是「清空」（2026-11-02 用户决定）：
+           版式是高频轻操作，清空是低频危险操作，两者的热区权重不该一样。
+           清空下沉到设置页（那里才有二次确认的位置）。 -->
+      <text class="toolbar-link" onclick="toggleLayout"
+            style="color: {{ theme.accent }}">{{ layout === 'hero' ? '大字' : '标准' }}</text>
     </div>
 
     <scroll class="list-scroll" scroll-y="{{true}}">
@@ -259,6 +262,19 @@ export default {
     var self = this
     countdown.save(list, function() {
       self.loadList()
+    })
+  },
+
+  // 版式一键切换：只写 storage + 改 layout，两套 DOM 共用同一份 decorate 字段，
+  // 不需要重新加载数据（hero 用的 numText/heroUnit 在 decorate 里已经算好）
+  toggleLayout() {
+    const self = this
+    const next = (this.layout === 'hero') ? 'card' : 'hero'
+    storage.set({
+      key: 'cd_layout',
+      value: next,
+      success: function () { self.layout = next },
+      fail: function () { self.layout = next }
     })
   },
 
