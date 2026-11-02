@@ -46,11 +46,16 @@
         <div class="ls-row" if="{{ layout !== 'hero' }}"
              style="background-color: {{ item.lsBg }}; opacity: {{ item.enabled ? 1 : 0.5 }}"
              onclick="openForm(item.id)">
-          <!-- 两列（2026-11-02 方案 B）：①标题独占 → 4 字/行 ②数字+「天」竖叠
+          <!-- 两列（2026-11-02 方案 B）：①标题独占 → 4 字/行 ②数字+单位竖叠
                去掉「还有/已经」后标题拿满 96px，8 字长名（数学期末考试）能整条显示。
-               方向语义改由数字前缀承担：正计时「+306」、已过「-5」（并压灰），
-               倒计时不加前缀。为什么不纯用颜色：每条记录的颜色是用户自选的，
-               强行改色会覆盖它，底色 tint 也会跟着打架，所以颜色仍归用户，符号管方向。 -->
+               方向一律由单位承担，数字不带任何正负号：
+                 前缀「天前」= 目标/起点在过去（已过期、正计时）；不带前缀「天」= 未来倒数。
+               曾经用过「+306 / -5」的符号方案，两个问题把它否掉了：
+                 ① bold 字重下 ASCII hyphen 被渲染成长横，-5 看着像「一5」（Chrome 实测）；
+                 ② 同一件事（过去 N 天）在正计时用「+」、在过期用「-」，语义还反了
+                    ——「+」直觉指向未来。统一成单位后，两条分支共用一套文案。
+               为什么不纯用颜色区分方向：每条记录的颜色是用户自选的，强行改色会覆盖它，
+               底色 tint 也会跟着打架。颜色归用户，方向归单位。 -->
           <text class="ls-title" style="color: {{ theme.text }}">{{ item.title }}</text>
           <div class="num-box">
             <text if="{{ item.isToday }}" class="ls-today" style="color: {{ item.daysColor }}">今天</text>
@@ -235,32 +240,24 @@ export default {
 
       // 正计时（mode=up）：起点在过去，天数 = |daysLeft|
       // 倒数（mode=down）：目标在未来，天数 = daysLeft
-      // 两者共用同一套展示字段，只有 phrase（还有/已经）与是否置灰不同。
+      // 两者共用同一套展示字段，差异只剩「是否置灰 / 是否归入已结束分组」。
       var n = isUp ? Math.abs(d) : d
       var done = (!isUp && d < 0)
       it.isToday = (n === 0)
       it.status = isUp ? "active" : (done ? "done" : (n === 0 ? "today" : "active"))
 
+      // 方向一律由单位承担，数字不带正负号（2026-11-02 统一）：
+      //   未来 → 「N 天」；过去（已过期 / 正计时同款）→ 「N 天前」。
+      // 符号方案已废弃，原因见模板里那段注释（hyphen 渲染成长横 + 「+」语义反了）。
       if (it.isToday) {
-        it.phrase = ""
         it.numText = "0"
         it.unitText = "天"
         it.heroUnit = "天"
-      } else if (isUp) {
-        it.phrase = "已经"
-        // 方案 B：方向不再写「已经」二字，改用前缀符号 + 已过压灰来表达。
-        it.numText = "+" + n
-        it.unitText = "天"
-        it.heroUnit = "天"
-      } else if (done) {
-        it.phrase = "已过"
-        // 不用负号：bold 下 ASCII hyphen 会被渲染成长横，视觉上像「一5」（Chrome 实测）。
-        // 改由单位承担语义——「5 天前」，比「-5 天」既准确又不歧义。
+      } else if (done || isUp) {
         it.numText = String(Math.abs(d))
         it.unitText = "天前"
         it.heroUnit = "天前"
       } else {
-        it.phrase = "还有"
         it.numText = String(n)
         it.unitText = "天"
         it.heroUnit = "天后"
@@ -269,10 +266,8 @@ export default {
       // 字号随字符数分三档（ev-six 全合法档位 44/30/28/24）：
       //   ≤2 字符 → 44px（「22」≈58px，68px 列宽装得下）
       //   3 字符   → 30px（真机实测 44px 的「126」约 87px，68px 列宽装不下会折成两行，这是 0.5.7 的 bug）
-      //   ≥4 字符 → 28px（「+306」「1234」约 62px，留 6px 余量防真机字体更宽）
+      //   ≥4 字符 → 28px（「1234」约 62px，留 6px 余量防真机字体更宽）
       it.numSize = (it.numText.length >= 4) ? 28 : (it.numText.length === 3 ? 30 : 44)
-      // dirWord 保留计算（hero 版式/调试仍可能读），但列表版式已不再渲染它。
-      it.dirWord = isUp ? "已经" : (done ? "已过" : "还有")
       it.daysColor = (done ? this.theme.textMuted : textColor)
       it.barBg = "background-color: " + it.daysColor
 
