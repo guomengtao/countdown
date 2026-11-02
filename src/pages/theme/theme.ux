@@ -105,11 +105,19 @@ export default {
   lines: 1;
 }
 
-/* 列表：宽 168 居中，行高 44 + 间距 6 = 50/行，11 行靠滚动 */
+/* 列表：宽 168 居中，行高 44 + 间距 6 = 50/行，11 行共 550px 靠滚动。
+   ⚠️ 高度必须写死，不能只给 flex:1：
+   192×490 屏 − 上边距 12 − 页头 48 − 上下留白 30 = 400px 的可视窗口。
+   **真凶是缺 flex-direction: column**：11 个 .row 被当成一行横向排开，
+   屏幕里只装得下第一个，其余全排到 192px 之外（真机反馈「只看到 1 个主题」）。
+   对照 cd-list 的 .list-scroll，那一条是带 flex-direction: column 的。
+   高度写死是第二重保险（scroll 在 flex 链里拿不到确定高度会退化）。 */
 .list {
   width: 168px;
-  flex: 1;
+  height: 400px;
+  flex-shrink: 0;
   margin-top: 8px;
+  flex-direction: column;   /* ← 缺这一行 = 只显示 1 个主题的真凶 */
 }
 .row {
   width: 100%;
@@ -146,5 +154,6 @@ export default {
   line-height: 30px;
   lines: 1;
   flex-shrink: 0;
+  margin-left: 6px;
 }
 </style>
