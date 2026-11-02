@@ -5,12 +5,7 @@
        - pages/nickname screentype=rect，延迟 300ms 挂载
      字号只走 ev-six 四档：44/30/28/24 -->
 <template>
-  <!-- .root 是纯定位容器，只做 position:relative，不放 flex。
-       ⚠️ Vela 硬约束（class-schedule/watch-face-animated 头注释第④条）：
-       flex 容器里混 position:absolute 子元素 → 整页黑屏。
-       所以遮罩必须是 .page 的兄弟，不能是 .page 的子元素。 -->
-  <div class="root">
-    <div class="page">
+  <div class="page">
     <!-- 手势只挂在这个信息块上，不挂页面根节点：
          根节点挂 onswipe 会把系统的「右划退出」吃掉（2026-11-02 实机两次复现） -->
     <div class="mid" onswipe="onSwipe">
@@ -25,7 +20,13 @@
       <text class="subj" if="{{ subj }}">科目 {{ subj }}</text>
       <text class="subj off" if="{{ !subj }}">科目未设置</text>
 
-      <text class="hint">左滑进入科目</text>
+      <!-- 左滑提示：静态箭头 + 文字。
+           刻意不挂 touch 监听做「跟手箭头」——Vela 上页面注册 touch 会把系统
+           「右划退出」手势吃掉（2026-11-02 实证，v0.0.103 之前一直退不出去）。 -->
+      <div class="hint">
+        <image class="hint-ic" src="/common/icons/chevron-left-light.png"></image>
+        <text class="hint-t">左滑进入科目</text>
+      </div>
     </div>
 
     <!-- 主按钮给「设置科目」：当前真机测试主线 -->
@@ -47,13 +48,6 @@
         <text class="btn-t">退出</text>
       </div>
     </div>
-
-    </div>
-
-    <!-- 转场遮罩：左滑时插入一层纯黑 div，只播 opacity 0→1。
-         刻意不用整页 transform —— 真机 0.0.108 上整页 translateX 直接黑屏重启（设备级）。
-         位置必须在 .page 外面（见 .root 的注释）；用 if 控制存在性，平时不拦截点击。 -->
-    <div class="dim" if="{{ dim }}"></div>
   </div>
 </template>
 
@@ -67,8 +61,6 @@ export default {
     ver: '0.0.1',
     nick: '',
     subj: '',
-    dim: false,
-    sliding: false,
     tx: 0,
     ty: 0,
     tt: 0,
@@ -86,9 +78,6 @@ export default {
   // 从设置页返回时要重新读一次，否则显示的永远是旧值
   onShow() {
     this.loadAll()
-    // 从科目页返回时必须清掉遮罩，否则整屏黑、点击全被它挡住
-    this.dim = false
-    this.sliding = false
   },
 
   loadAll() {
@@ -137,23 +126,11 @@ export default {
     const now = Date.now()
     if (this.navAt && now - this.navAt < 800) return
     this.navAt = now
-    this.slideToPill()
-  },
-
-  // 淡出转场：插入黑色遮罩播 opacity 0→1，200ms 后 push。
-  // 动画 260ms、push 在 200ms —— 让页面在最暗时被切走，
-  // 这样即使设备不支持 animation-fill-mode（动画结束会弹回透明）也看不出来。
-  slideToPill() {
-    if (this.sliding) return
-    this.sliding = true
-    this.dim = true
-    setTimeout(function () {
-      router.push({ uri: '/pages/pill' })
-    }, 200)
+    router.push({ uri: '/pages/pill' })
   },
 
   goPill() {
-    this.slideToPill()
+    router.push({ uri: '/pages/pill' })
   },
 
   goDiag() {
@@ -184,35 +161,6 @@ export default {
   flex-direction: column;
   align-items: center;
   padding-top: 10px;
-}
-
-/* 纯定位容器：只给尺寸和 relative，其余一概不做。
-   遮罩挂在这一层，才能既 absolute 又避开 .page 的 flex 布局。 */
-.root {
-  width: 100%;
-  height: 100%;
-  position: relative;
-}
-
-/* 转场遮罩：纯色 div、无文字、只动 opacity。
-   这是 Vela 上唯一被实证安全的动画形态（watch-face-animated 的呼吸光晕）。
-   整页 transform 会让系统把整屏当一张纹理重绘，手环扛不住 → watchdog 重启。 */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.dim {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: #000000;
-  animation-name: fadeIn;
-  animation-duration: 260ms;
-  animation-timing-function: ease-in;
-  animation-fill-mode: forwards;
 }
 
 .title {
@@ -263,12 +211,24 @@ export default {
 }
 
 /* 手势提示：只是一句小字，不占点击热区 */
+/* 左滑提示行：箭头 + 文字，一行居中。纯静态，不参与任何手势 */
 .hint {
   margin-top: 2px;
+  flex-shrink: 0;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+.hint-ic {
+  width: 20px;
+  height: 20px;
+  margin-right: 2px;
+  opacity: 0.5;
+}
+.hint-t {
   font-size: 24px;
   line-height: 30px;
   color: #6e6e73;
-  flex-shrink: 0;
 }
 
 .btn {
