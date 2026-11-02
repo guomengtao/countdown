@@ -1,0 +1,147 @@
+<!-- 主题选择页（0.2.0 新建）
+     11 套配色：classic 是本应用原有纯黑，其余 10 套从 ev/class-schedule 复制。
+     入口：设置页「主题」条目。
+     页头与 pill / nickname / settings / cd-list 同构（居中胶囊），不另写一套。
+     字号只走 ev-six 四档：44 / 30 / 28 / 24。
+     列表必须可滚动：11 项 × 50px = 550px，远超 192×490 的可视高度，
+     靠 scroll-y 滚动，不做分页（分页会让「换主题」变成翻两次的事）。 -->
+<template>
+  <div class="page" style="background-color: {{ theme.bg }}">
+    <div class="top">
+      <div class="hd" onclick="goBack" style="background-color: {{ theme.cardLight }}">
+        <image class="hd-ic" src="/common/icons/chevron-left-light.png"></image>
+        <text class="hd-t" style="color: {{ theme.text }}">主题</text>
+      </div>
+    </div>
+
+    <scroll class="list" scroll-y="{{true}}">
+      <div for="{{ (idx, item) in themes }}" class="row"
+           style="background-color: {{ item.card }}"
+           onclick="pick($item)">
+        <!-- 色块用 bg + accent 双层：只给一个色点看不出「浅色主题」，
+             双层能同时表达底色和强调色，一眼分得清深/浅。 -->
+        <div class="sw" style="{{ item.swatch }}">
+          <div class="dot" style="{{ item.dot }}"></div>
+        </div>
+        <text class="nm" style="color: {{ theme.text }}">{{ item.name }}</text>
+        <text class="ck" if="{{ item.key === cur }}" style="color: {{ theme.accent }}">当前</text>
+      </div>
+    </scroll>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import theme from '../../data/theme.js'
+
+export default {
+  data: {
+    themes: [],
+    cur: 'classic',
+    theme: {}
+  },
+
+  onInit() {
+    const self = this
+    this.themes = theme.listThemes()
+    theme.getTheme(function (t, name) {
+      self.theme = t
+      self.cur = name
+    })
+  },
+
+  pick(item) {
+    const self = this
+    const key = item && item.key
+    if (!key || key === this.cur) return
+    // 立即刷新：选完必须马上看到整页变色，否则用户会怀疑没生效
+    theme.setTheme(key, function (t, name) {
+      self.theme = t
+      self.cur = name
+    })
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+}
+
+.top {
+  height: 48px;
+  flex-shrink: 0;
+  margin-top: 12px;
+  justify-content: center;
+  align-items: center;
+}
+.hd {
+  width: 160px;
+  height: 48px;
+  border-radius: 24px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+.hd-ic {
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
+  object-fit: contain;
+}
+.hd-t {
+  font-size: 28px;
+  line-height: 38px;
+  lines: 1;
+}
+
+/* 列表：宽 168 居中，行高 44 + 间距 6 = 50/行，11 行靠滚动 */
+.list {
+  width: 168px;
+  flex: 1;
+  margin-top: 8px;
+}
+.row {
+  width: 100%;
+  height: 44px;
+  margin-bottom: 6px;
+  padding-left: 8px;
+  padding-right: 10px;
+  border-radius: 12px;
+  flex-direction: row;
+  align-items: center;
+}
+.sw {
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+}
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+}
+.nm {
+  flex: 1;
+  margin-left: 8px;
+  font-size: 24px;
+  line-height: 30px;
+  lines: 1;
+}
+.ck {
+  font-size: 24px;
+  line-height: 30px;
+  lines: 1;
+  flex-shrink: 0;
+}
+</style>

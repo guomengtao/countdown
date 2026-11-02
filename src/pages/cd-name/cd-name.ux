@@ -82,10 +82,14 @@ export default {
     //   等于逼用户用小键盘打字）。
     // getInfo 失败或字段缺失时保持默认 false —— 退回自绘键盘这条已真机验证的路，
     // 不会出现「两边都不弹、输不了字」的死局。
+    // ⚠️ 必须用「白名单」而不是「不是 watch 就当有系统输入法」：
+    // 手环真机回上来的 deviceType 未必是 'watch'（可能是 band/wearable/watch9 等），
+    // 用排除法会把真手环误判成有系统输入法 → 自绘键盘不挂 → 一个键盘都没有（0.1.1 实测）。
+    // 只有明确属于「带系统输入法的设备」才走原生 input，其余一律自绘。
     device.getInfo({
       success: function (info) {
-        var t = (info && info.deviceType) || ''
-        self.sysIme = !!t && t !== 'watch'
+        var t = ((info && info.deviceType) || '').toLowerCase()
+        self.sysIme = ['phone', 'tablet', 'tv', 'car', '2in1'].indexOf(t) >= 0
       },
       fail: function () {}
     })

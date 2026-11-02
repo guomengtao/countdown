@@ -1,8 +1,8 @@
 {
   "package": "com.application.watch.countdown",
   "name": "倒数日",
-  "versionName": "0.1.1",
-  "versionCode": 124,
+  "versionName": "0.2.0",
+  "versionCode": 125,
   "minPlatformVersion": 1050,
   "icon": "/logo.png",
   "deviceTypeList": [
@@ -64,6 +64,9 @@
       },
       "pages/cd-name": {
         "component": "cd-name"
+      },
+      "pages/theme": {
+        "component": "theme"
       }
     }
   }
