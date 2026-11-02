@@ -5,9 +5,15 @@
        - pages/nickname screentype=rect，延迟 300ms 挂载
      字号只走 ev-six 四档：44/30/28/24 -->
 <template>
-  <div class="page">
-    <!-- 手势只挂在这个信息块上，不挂页面根节点：
-         根节点挂 onswipe 会把系统的「右划退出」吃掉（2026-11-02 实机两次复现） -->
+  <!-- v0.0.115：根节点接管触摸流。
+       之前的结论「根节点碰 touch 就吃掉右划退出」是对的，所以这一版
+       干脆不再依赖系统右划 —— 自己判断右划并 quitApp()，出口等价。
+       左滑的反馈改为「一滑就出」：位移刚过 16px 就变蓝 + 震动，
+       松手且位移仍够才进入（用户明确要求：滑一半停住要有反应，
+       滑完再提示没意义）。 -->
+  <div class="page" ontouchstart="onTouchStart" ontouchmove="onTouchMove" ontouchend="onTouchEnd" ontouchcancel="onTouchEnd">
+    <!-- 触摸由 .page 根节点统一接管（见 script 里 onTouchStart 注释）。
+         这里的 onswipe 保留为兜底通道，逐块挂是因为 Vela 的 swipe 不冒泡 -->
     <div class="mid" onswipe="onSwipe">
       <!-- v0.0.114：每个子块都单独挂 onswipe。
            Vela 的 swipe 事件不冒泡到父容器 —— 只挂 .mid 时，手指落在
@@ -72,6 +78,8 @@ export default {
     ty: 0,
     tt: 0,
     navAt: 0,
+    lx: 0,
+    armed: false,
     swiped: false
   },
 
@@ -115,40 +123,87 @@ export default {
     router.push({ uri: '/pages/nickname' })
   },
 
-  // 首页左滑 = 进入「设置科目」。
-  // 注意：「右划」是系统官方的退出/返回手势，绝不能占用（占了会导致退出失败）；
-  // 所以进入设置科目只用「左滑」，并且右划必须原样留给系统，本页不拦。
-  // 双通道：优先用 Vela 的 onswipe（部分平台/版本不派发），
-  // 再兜一层 touch 起止坐标判定，两个通道都命中时用 navAt 去重，避免连开两页。
-  // 首页左滑 = 进入「设置科目」。
-  // ⚠️ 只用 Vela 原生 onswipe，绝对不要在页面根节点挂 touchstart/touchend：
-  // 2026-11-02 实测，根节点一挂 touch 监听，系统默认的「右划退出」就被吃掉，
-  // 手环上右滑退不出去（用户实机复现）。原生 onswipe 只读方向，不抢触摸流，
-  // 系统手势照常工作。
-  // 方向约定：「右划」= 系统退出，不能占用；进入设置科目只用「左滑」。
-  onSwipe(evt) {
-    const dir = (evt && evt.direction) || ''
-    if (dir === 'left') this.goPillOnce()
+  // ── 左滑：一滑就有反馈（v0.0.115）────────────────────────────
+  // 为什么不用 onswipe：onswipe 是「拖够阈值、已经滑完」才派发一次，
+  // 那时候页面马上就要翻走，变色根本看不见（用户原话：没意义）。
+  // 所以改用 touch 三件套，在位移刚过 16px 的瞬间就给反馈。
+  //
+  // ⚠️ 三条红线（前几次翻车的教训）：
+  //   1) touchmove 里绝不做逐帧 setData —— 一次越过阈值只切一次状态，
+  //      用 this.armed 上锁（v0.0.113/114 逐帧刷 opacity，真机直接退应用）
+  //   2) 不写 opacity / transform / 位移，只换一行文字的颜色（不触发重排）
+  //   3) 根节点接住触摸流后系统右划失效，所以右划必须自己处理（onTouchEnd）
+  onTouchStart(evt) {
+    const t = (evt && evt.touches && evt.touches[0]) || null
+    if (!t) return
+    this.tx = t.clientX
+    this.ty = t.clientY
+    this.lx = t.clientX
+    this.armed = false
   },
 
-  goPillOnce() {
+  onTouchMove(evt) {
+    const t = (evt && evt.touches && evt.touches[0]) || null
+    if (!t) return
+    this.lx = t.clientX
+    if (this.armed) return
+
+    const dx = t.clientX - this.tx
+    const dy = t.clientY - this.ty
+    // 左移 16px 且没有明显上下漂移 = 认定「开始左滑」
+    if (dx <= -16 && Math.abs(dy) < 40) {
+      this.armed = true
+      this.swiped = true      // 唯一一次 setData：提示行变蓝
+      this.buzz()             // 唯一一次震动：手环上比颜色更即时
+    }
+  },
+
+  onTouchEnd() {
+    const dx = this.lx - this.tx
+    const armed = this.armed
+    this.armed = false
+
+    // 右划：系统手势已被本页吃掉，这里等价兜底（超过 60px 才算数，避免误触）
+    if (dx >= 60) {
+      this.swiped = false
+      this.quitApp()
+      return
+    }
+
+    // 松手时位移仍够才算数：滑到一半放弃 → 只把颜色复位，不跳页
+    if (armed && dx <= -30) {
+      const self = this
+      setTimeout(function () {
+        self.swiped = false
+        self.enterPill()
+      }, 120)
+    } else {
+      this.swiped = false
+    }
+  },
+
+  // 震动：函数内 require（顶层 import 在某镜像上会把整页带崩，见 class-schedule 踩坑）
+  buzz() {
+    try {
+      const vibrator = require('@system.vibrator')
+      vibrator.vibrate({ mode: 'short' })
+    } catch (e) {}
+  },
+
+  // onswipe 兜底：万一某镜像不派发 touch 事件，老路径还能进
+  onSwipe(evt) {
+    const dir = (evt && evt.direction) || ''
+    if (dir === 'left') this.enterPill()
+  },
+
+  // 统一入口：800ms 内只进一次，避免 touch 与 onswipe 双触发连开两页
+  enterPill() {
     const now = Date.now()
-    if (this.navAt && now - this.navAt < 1500) return
+    if (this.navAt && now - this.navAt < 800) return
     this.navAt = now
-
-    // 先给可见反馈：提示行切成蓝色「正在进入科目」，停 160ms 再跳页。
-    // 只做一次 setData，不动画、不位移，避开 Vela「touch 回调里连续 setData
-    // 会退应用」的坑（v0.0.113/114 实测）。160ms 是「眼睛刚好捕捉到」的下限，
-    // 再短就看不见了（用户反馈 260ms 偏慢）。
-    this.swiped = true
-
-    const self = this
-    setTimeout(function () {
-      self.swiped = false
-      try {
-        router.push({ uri: '/pages/pill' })
-      } catch (e) {}
-    }, 160)
+    try {
+      router.push({ uri: '/pages/pill' })
+    } catch (e) {}
   },
 
   goPill() {
