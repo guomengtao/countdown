@@ -82,12 +82,34 @@
 
         <div class="sep"></div>
 
-        <!-- 只留一条真正有用的补充（右滑退出）。
-             原来这里是一张「手势一览」三行小表，192×490 上挤成一团、根本读不清
-             （用户 2026-11-02 反馈「完全看不清楚」），砍到一行。 -->
-        <div class="row">
+        <!-- 三部分结构（v0.0.122，用户 2026-11-02 要求）：
+             ① 本次手势通向哪（上面 card-top + card-title）
+             ② 其他手势一览：排除当前方向，剩下的正好 4 条
+                （五个手势：左/右/上/下/长按，减 1 得 4，天然凑满不用滚动）
+             ③ 进入 / 关闭 + 倒计时
+             宽度红线：卡片内宽只有 160px（192 − 8×2 外层 − 8×2 内边），
+             所以左列限 2 字（48px）、右列限 3 字（72px），合计 120 才不折行。
+             「退出应用」曾写 4 字（96px），与左列相加 144，只剩 16px 余量，
+             真机字重偏粗时会顶到边，故统一压成 2 字。 -->
+        <div class="row" if="{{ dir !== 'left' }}">
+          <text class="row-l">左滑</text>
+          <text class="row-r">科目</text>
+        </div>
+        <div class="row" if="{{ dir !== 'up' }}">
+          <text class="row-l">上滑</text>
+          <text class="row-r">设置</text>
+        </div>
+        <div class="row" if="{{ dir !== 'down' }}">
+          <text class="row-l">下滑</text>
+          <text class="row-r">诊断</text>
+        </div>
+        <div class="row" if="{{ dir !== 'right' }}">
           <text class="row-l">右滑</text>
-          <text class="row-r">退出应用</text>
+          <text class="row-r">退出</text>
+        </div>
+        <div class="row">
+          <text class="row-l">长按</text>
+          <text class="row-r">设置</text>
         </div>
 
         <div class="card-brow">
@@ -617,11 +639,13 @@ export default {
   font-size: 24px;
   line-height: 30px;
   color: #8e8e93;
+  lines: 1;
 }
 .row-r {
   font-size: 24px;
   line-height: 30px;
   color: #ffffff;
+  lines: 1;
 }
 
 .card-brow {
