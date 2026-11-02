@@ -264,9 +264,11 @@ export default {
         it.heroUnit = "天后"
       }
 
-      // 字号随位数收敛：2 字符以内 44px（ev-six 次大档），4 字符起降到 30px。
-      // 符号也算字符：「+306」「1234」都是 4 字符 → 30px，60px 宽稳稳装进 68px 数字列。
-      it.numSize = (it.numText.length >= 4) ? 30 : 44
+      // 字号随字符数分三档（ev-six 全合法档位 44/30/28/24）：
+      //   ≤2 字符 → 44px（「22」≈58px，68px 列宽装得下）
+      //   3 字符   → 30px（真机实测 44px 的「126」约 87px，68px 列宽装不下会折成两行，这是 0.5.7 的 bug）
+      //   ≥4 字符 → 28px（「+306」「1234」约 62px，留 6px 余量防真机字体更宽）
+      it.numSize = (it.numText.length >= 4) ? 28 : (it.numText.length === 3 ? 30 : 44)
       // dirWord 保留计算（hero 版式/调试仍可能读），但列表版式已不再渲染它。
       it.dirWord = isUp ? "已经" : (done ? "已过" : "还有")
       it.daysColor = (done ? this.theme.textMuted : textColor)
@@ -455,6 +457,9 @@ export default {
    44px 粗体（ev-six 次大档）；4 字符（+306 / 1234）由 decorate 降到 30px。 */
 .ls-num {
   line-height: 42px;
+  /* lines:1 是硬保险：真机字体度量比 Chrome 宽 1~2px，字号分档算准了也可能压线，
+     一旦超宽 Vela 会直接折成两行（0.5.7 三位数换行就是这个原因），禁止折行兜底。 */
+  lines: 1;
   font-weight: bold;
   text-align: right;
 }

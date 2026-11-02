@@ -1,8 +1,8 @@
 {
   "package": "com.application.watch.countdown",
-  "name": "Ev课程表",
-  "versionName": "0.5.7",
-  "versionCode": 136,
+  "name": "Ev倒计时",
+  "versionName": "0.5.8",
+  "versionCode": 137,
   "minPlatformVersion": 1050,
   "icon": "/logo.png",
   "deviceTypeList": [
