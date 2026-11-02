@@ -70,30 +70,24 @@
 
     <!-- 弹窗：滑了但没滑到、松手放弃时出现。
          用户明确要求「可以看也可以不看」→ 不自动进入，给「进入 / 知道了」两个出口，
-         外加 5 秒倒计时自动关（数字每秒刷新一次，低频 setData 安全）。
+         外加 30 秒倒计时自动关（测试期故意放长，来不及看）（数字每秒刷新一次，低频 setData 安全）。
          不做 absolute、不遮罩、不动画 —— 全屏黑底 + 居中卡片就是弹窗观感。 -->
     <div class="sheet" if="{{ sheet }}">
       <div class="card">
         <div class="card-top">
           <image class="card-ic" src="/common/icons/chevron-left-light.png"></image>
-          <text class="card-k">左滑</text>
+          <text class="card-k">左滑进入</text>
         </div>
-        <text class="card-title">进入 设置科目</text>
+        <text class="card-title">设置科目</text>
 
         <div class="sep"></div>
 
-        <text class="card-h">手势一览</text>
-        <div class="row">
-          <text class="row-l">左滑</text>
-          <text class="row-r">进入设置科目</text>
-        </div>
+        <!-- 只留一条真正有用的补充（右滑退出）。
+             原来这里是一张「手势一览」三行小表，192×490 上挤成一团、根本读不清
+             （用户 2026-11-02 反馈「完全看不清楚」），砍到一行。 -->
         <div class="row">
           <text class="row-l">右滑</text>
           <text class="row-r">退出应用</text>
-        </div>
-        <div class="row">
-          <text class="row-l">点按钮</text>
-          <text class="row-r">对应操作</text>
         </div>
 
         <div class="card-brow">
@@ -101,10 +95,10 @@
             <text class="cbtn-t">进入</text>
           </div>
           <div class="cbtn" onclick="closeSheet">
-            <text class="cbtn-t">知道了</text>
+            <text class="cbtn-t">关闭</text>
           </div>
         </div>
-        <text class="card-cd">{{ left }} 秒后自动关闭</text>
+        <text class="card-cd">{{ left }} 秒后关闭</text>
       </div>
     </div>
   </div>
@@ -128,7 +122,7 @@ export default {
     armed: false,
     swiped: false,
     sheet: false,
-    left: 5,
+    left: 30,
     timer: 0,
     holdTimer: 0
   },
@@ -256,11 +250,11 @@ export default {
     this.swiped = false
   },
 
-  // 弹窗：不自动进入，5 秒倒计时后自己关。数字每秒刷一次（低频，安全）
+  // 弹窗：不自动进入，30 秒倒计时后自己关。数字每秒刷一次（低频，安全）
   openSheet() {
     if (this.sheet) return
     this.sheet = true
-    this.left = 5
+    this.left = 30
     const self = this
     if (this.timer) clearInterval(this.timer)
     this.timer = setInterval(function () {
@@ -479,7 +473,7 @@ export default {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 12px;
+  padding: 8px;
   background-color: #000000;
 }
 
@@ -489,9 +483,9 @@ export default {
   width: 100%;
   flex-direction: column;
   align-items: center;
-  padding: 14px 10px 10px 10px;
-  border-radius: 18px;
-  background-color: #1c1c1e;
+  padding: 16px 8px 12px 8px;
+  border-radius: 20px;
+  background-color: #2c2c2e;
 }
 
 .card-top {
@@ -534,7 +528,7 @@ export default {
 }
 .row {
   width: 100%;
-  margin-top: 6px;
+  margin-top: 10px;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
@@ -552,7 +546,7 @@ export default {
 }
 
 .card-brow {
-  margin-top: 12px;
+  margin-top: 18px;
   flex-direction: row;
   justify-content: center;
   align-items: center;
@@ -562,7 +556,7 @@ export default {
   width: 70px;
   height: 44px;
   border-radius: 22px;
-  background-color: #3a3a3c;
+  background-color: #48484a;
   justify-content: center;
   align-items: center;
 }
@@ -577,7 +571,7 @@ export default {
 }
 
 .card-cd {
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 24px;
   line-height: 30px;
   color: #6e6e73;
