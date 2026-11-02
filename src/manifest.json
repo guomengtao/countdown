@@ -1,8 +1,8 @@
 {
   "package": "com.application.watch.countdown",
   "name": "Ev课程表",
-  "versionName": "0.5.3",
-  "versionCode": 132,
+  "versionName": "0.5.4",
+  "versionCode": 133,
   "minPlatformVersion": 1050,
   "icon": "/logo.png",
   "deviceTypeList": [

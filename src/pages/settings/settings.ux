@@ -17,11 +17,6 @@
         <text class="it-k" style="color: {{ theme.text }}">主题</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}">{{ themeName }}</text>
       </div>
-      <!-- 清空：低频 + 危险，所以从首页下沉到这里，并且带 3 秒二次确认。
-           首页工具行右边那个位置让给「版式」切换（高频轻操作）。 -->
-      <div class="item" style="background-color: {{ theme.card }}" onclick="clearAll">
-        <text class="it-k" style="color: {{ clearConfirm ? theme.deleteText : theme.text }}">{{ clearConfirm ? '确认清空' : '清空数据' }}</text>
-      </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="goNick">
         <text class="it-k" style="color: {{ theme.text }}">昵称</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ nick }}">{{ nick }}</text>
@@ -44,6 +39,13 @@
       <div class="item" style="background-color: {{ theme.card }}" onclick="quitApp">
         <text class="it-k" style="color: {{ theme.text }}">退出</text>
         <text class="it-v">关闭</text>
+      </div>
+
+      <!-- 清空数据放最后一项（2026-11-02 用户要求）：
+           危险操作脱离了视线最高处（原来排第 2，紧跟主题之后），
+           也符合「越靠下越不可逆」的列表惯例。仍带 3 秒二次确认。 -->
+      <div class="item" style="background-color: {{ theme.card }}" onclick="clearAll">
+        <text class="it-k" style="color: {{ clearConfirm ? theme.deleteText : theme.text }}">{{ clearConfirm ? '确认清空' : '清空数据' }}</text>
       </div>
     </div>
 

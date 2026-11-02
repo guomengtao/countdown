@@ -34,25 +34,27 @@
           <text class="cd-group-label" style="color: {{ theme.textMuted }}">已结束</text>
         </div>
 
-        <!-- 版式 A · 简单列表（layout=list，默认）：两行一条
-             第 1 行 标题，第 2 行 「还有 22 天」/「已经 126 天」。
-             刻意不要日期、不要农历、不要进度条 —— 一屏只放得下 3 条，
-             多塞一样东西换来的只是稀释「还剩几天」这一个重点。
-             要看细节点卡片进编辑页。 -->
+        <!-- 版式 A · 简单列表（layout=list，默认）：**两列**
+             左列 = 标题，允许折两行（lines:2，超出省略）；右列 = 大数字 + 小单位。
+             为什么改成两列（2026-11-02 用户提议，实测成立）：
+               竖向两行的写法里「还有 126 天」要跟标题抢同一行宽度，24px 下
+               标题只能分到 3 个字；拆成左右两列后，标题独占左列整块的 2 行 ×
+               74px（约 6 字），数字独占右列 74px，两边互不挤压。
+             语义不再用「还有/已经」两个词（那要多占一行），改成单位后缀：
+               「天后」= 目标在未来（倒数）、「天前」= 起点在过去（正计时 / 已过期）。
+               一个词就带了方向，比两个词省一整行。 -->
         <div class="ls-row" if="{{ layout !== 'hero' }}"
              style="background-color: {{ item.lsBg }}; opacity: {{ item.enabled ? 1 : 0.5 }}"
              onclick="openForm(item.id)">
-          <div class="ls-line1">
+          <div class="ls-left">
             <text class="ls-title" style="color: {{ theme.text }}">{{ item.title }}</text>
-            <text if="{{ !item.enabled }}" class="ls-off" style="color: {{ theme.textMuted }}">关闭</text>
           </div>
-          <div class="ls-line2">
-            <!-- 就是今天：不显示「还有 0 天」这种废话，直接一句话 -->
-            <text if="{{ item.isToday }}" class="ls-today" style="color: {{ item.daysColor }}">就是今天</text>
-            <text if="{{ !item.isToday }}" class="ls-phrase" style="color: {{ theme.textSecondary }}">{{ item.phrase }}</text>
+          <div class="ls-right">
+            <!-- 就是今天：不显示「0 天后」这种废话 -->
+            <text if="{{ item.isToday }}" class="ls-today" style="color: {{ item.daysColor }}">今天</text>
             <text if="{{ !item.isToday }}" class="ls-num"
                   style="color: {{ item.daysColor }}; font-size: {{ item.numSize }}px">{{ item.numText }}</text>
-            <text if="{{ !item.isToday }}" class="ls-unit" style="color: {{ item.daysColor }}">{{ item.unitText }}</text>
+            <text if="{{ !item.isToday }}" class="ls-unit" style="color: {{ item.daysColor }}">{{ item.dirText }}</text>
           </div>
         </div>
 
@@ -94,11 +96,19 @@
         <text class="act-set-t" style="color: {{ theme.text }}">设置</text>
       </div>
     </div>
+
+    <!-- 版本号：居中独立一行（v0.5.4 用户要求）。
+         放按钮下方而不是列表下方：列表是滚动区，版本号跟滚动会忽上忽下；
+         钉在屏幕最底部才叫「页脚」。 -->
+    <div class="ver-line">
+      <text class="ver-t" style="color: {{ theme.textMuted }}">{{ verText }}</text>
+    </div>
   </div>
 </template>
 
 <script>
 import router from "@system.router"
+import app from "@system.app"
 import storage from "@system.storage"
 const countdown = require("../../data/countdown.js")
 const theme = require("../../data/theme.js")
@@ -107,6 +117,8 @@ export default {
   private: {
     iconTheme: "dark",
     isLight: false,
+    // 页脚版本号：读不到就空着，不写死字符串（写死会与 manifest 脱节）
+    verText: "",
     theme: {
       bg: "#000000",
       card: "#1c1c1e",
@@ -132,6 +144,13 @@ export default {
 
   onInit() {
     var self = this
+    // 版本号：从 manifest 读，不在代码里写死
+    app.getInfo({
+      success: function (d) {
+        if (d && d.versionName) self.verText = "v" + d.versionName
+      },
+      fail: function () {}
+    })
     theme.getTheme(function(t, themeName) {
       self.theme = t
       // 浅色主题（晨光白/暖阳米）决定色块是提亮还是压暗
@@ -245,7 +264,11 @@ export default {
       // 字号随位数收敛：2 位以内 44px（ev-six 次大档），3 位以上降到 30px。
       // 144px 内宽里「还有」48 + 「126」72 + 「天」24 + 间距 = 146 会挤爆，
       // 降到 30px 后三段共 122px，稳稳放下（已结束条目同理）。
-      it.numSize = (it.numText.length >= 3) ? 30 : 44
+      // 两列版式右列宽 74px：44px 下三位数「126」≈72px 刚好，四位数必溢出 → 降到 30px
+      it.numSize = (it.numText.length >= 4) ? 30 : 44
+      // 方向词只留一个后缀：天后（未来）/ 天前（过去）。
+      // 原「还有 / 已经 / 已过」三个词各占一行宽，两列版式没有那个位置。
+      it.dirText = isUp ? "天前" : (done ? "天前" : "天后")
       it.daysColor = (done ? this.theme.textMuted : textColor)
       it.barBg = "background-color: " + it.daysColor
 
@@ -398,79 +421,67 @@ export default {
   flex-direction: column;
 }
 
-/* ---- 版式 A · 简单列表：两行一条，行高约 100px（一屏 3 条）----
-   行高 = 8(上) + 30(标题行) + 2 + 52(天数行) + 10(下) = 102，加 8 间距 = 110/条。
-   144px 内宽里最宽的一行是「还有 + 126 + 天」：用 30px 数字时共 122px，安全。 */
+/* ---- 版式 A · 简单列表：两列 · 卡高 88（一屏 3.5 条）----
+   内宽 = 192 - 2×12(页面) - 2×10(卡内) = 148 → 左列 ≈74 + 右列 74。
+   左列 74px / 24px 字号 ≈ 3 字每行，两行 6 字（「数学期末考」5 字放得下）。
+   右列 74px 装 44px 的三位数「126」≈72px，正好卡住；
+   四位数会溢出，所以 decorate 里 len>=4 时降到 30px。 */
 .ls-row {
-  flex-direction: column;
-  width: 100%;
-  flex-shrink: 0;
-  border-radius: 14px;
-  padding: 8px 12px 10px 12px;
-  margin-bottom: 8px;
-}
-
-.ls-line1 {
   flex-direction: row;
   align-items: center;
   width: 100%;
+  height: 88px;
   flex-shrink: 0;
+  border-radius: 14px;
+  padding: 0 10px 0 10px;
+  margin-bottom: 8px;
 }
 
-/* 标题占满剩余宽度，长标题在此截断（省略号）而不折行 ——
-   列表版式靠「整齐」立住，一旦折行两行变三行，节奏就散了 */
+.ls-left {
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* 标题：严格最多两行，超出省略。
+   为什么不允许三行（2026-11-02 定案）：列表的整齐感来自「每条等高」。
+   允许三行就会有条目把别人顶下去，一屏能放几条变得不确定，滚动位置也会跳；
+   想看全文点卡片进编辑页即可，那里没有长度限制。 */
 .ls-title {
   font-size: 24px;
   line-height: 30px;
-  lines: 1;
-  flex: 1;
-  min-width: 0;
+  lines: 2;
 }
 
-.ls-off {
-  font-size: 24px;
-  line-height: 30px;
-  margin-left: 6px;
+.ls-right {
+  width: 74px;
   flex-shrink: 0;
-}
-
-.ls-line2 {
-  flex-direction: row;
+  flex-direction: column;
   align-items: flex-end;
-  width: 100%;
-  margin-top: 2px;
-  flex-shrink: 0;
+  justify-content: center;
 }
 
-/* 「还有 / 已经 / 已过」：24px 弱色，只做语气，不抢数字 */
-.ls-phrase {
-  font-size: 24px;
-  line-height: 30px;
-  margin-bottom: 9px;
-  flex-shrink: 0;
-}
-
-/* 数字：44px 粗体（ev-six 次大档）。位数 ≥3 时由 decorate 内联降到 30px */
+/* 数字：44px 粗体（ev-six 次大档）。行高 46 + 单位 26 = 72 > 左列两行 60，
+   所以整卡高度由右列撑起 —— 数字就是这一行的主角。 */
 .ls-num {
-  line-height: 52px;
+  line-height: 46px;
   font-weight: bold;
-  margin-left: 3px;
-  flex-shrink: 0;
+  text-align: right;
 }
 
+/* 单位：「天后 / 天前」，24px，右对齐贴数字下沿 */
 .ls-unit {
   font-size: 24px;
-  line-height: 30px;
-  margin-left: 3px;
-  margin-bottom: 9px;
-  flex-shrink: 0;
+  line-height: 26px;
+  text-align: right;
 }
 
 .ls-today {
   font-size: 30px;
-  line-height: 52px;
+  line-height: 46px;
   font-weight: bold;
-  flex-shrink: 0;
+  text-align: right;
 }
 
 /* 进度条只剩「大字」版式在用（简单列表刻意不给进度，见模板注释） */
@@ -513,7 +524,7 @@ export default {
   justify-content: space-between;
   width: 100%;
   margin-top: 6px;
-  margin-bottom: 14px;
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 
@@ -547,6 +558,21 @@ export default {
   line-height: 30px;
   text-align: center;
   lines: 1;
+}
+
+.ver-line {
+  width: 100%;
+  height: 30px;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ver-t {
+  font-size: 24px;
+  line-height: 30px;
+  text-align: center;
 }
 
 .empty-text {
