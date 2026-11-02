@@ -470,6 +470,9 @@ export default {
   /* 视觉微调：中文字「天」的基线贴近字面框底部，纯盒子居中还偏低，
      加 8px 下外边距把重心提上来（flex center 下实际位移约 4px） */
   margin-bottom: 8px;
+  /* 视觉微调：中文字「天」的基线贴近字面框底部，纯盒子居中还偏低，
+     加 8px 下外边距把重心提上来（flex center 下实际位移约 4px） */
+  margin-bottom: 8px;
   text-align: center;
 }
 
