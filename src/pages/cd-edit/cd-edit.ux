@@ -129,7 +129,7 @@ export default {
     pageTitle: "添加",
     editId: "",
     title: "",
-    maxLen: "6",
+    maxLen: 6,
     iconTheme: "dark",
     isLight: false,
     errMsg: "",

@@ -669,13 +669,17 @@ export default {
   width: 100%;
 }
 
-/* 大屏（9 Pro / 10 Pro 等 rect 屏）只做增量 */
+/* 大屏（9 Pro / 10 Pro 等 rect 屏，212×520）只做增量。
+   2026-11-02 发布前核算：原来 .page 左右各 20 + 卡内 14，卡内宽只有
+   212−40−28 = 144px，减掉数字列 68 后标题只剩 76px —— 24px 字只放得下 3 个，
+   正好卡在「3 字/行」的临界线上，长标题会莫名其妙多折一行。
+   收紧边距后卡内宽回到 164px、标题 96px，与 9 号胶囊屏一致（同样 4 字/行）。 */
 @media (shape: rect) {
   .page {
-    padding: 0 20px;
+    padding: 0 10px;
   }
   .ls-row {
-    padding: 12px 14px 12px 14px;
+    padding: 0 14px;
   }
   .actions {
     margin-bottom: 18px;

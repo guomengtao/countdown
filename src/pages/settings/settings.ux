@@ -22,16 +22,10 @@
         <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ nick }}">{{ nick }}</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ !nick }}">未设置</text>
       </div>
-      <div class="item" style="background-color: {{ theme.card }}" onclick="goPill">
-        <text class="it-k" style="color: {{ theme.text }}">科目</text>
-        <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ subj }}">{{ subj }}</text>
-        <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ !subj }}">未设置</text>
-      </div>
-      <!-- 手势页入口：v0.3.0 首页顶部不再是可点胶囊，手势中心从这里进 -->
-      <div class="item" style="background-color: {{ theme.card }}" onclick="goGesture">
-        <text class="it-k" style="color: {{ theme.text }}">手势</text>
-        <text class="it-v">打开</text>
-      </div>
+      <!-- 2026-11-02 发布前清理：删掉「科目」与「手势」两项。
+           它们是从课程表项目带过来的遗留入口——「科目」跳 pages/pill（键盘宿主测试页）、
+           「手势」跳 pages/index（701 行旧首页，根节点自绘 touch，正是会闪退的写法）。
+           倒数日没有「科目」概念，手势也不该把用户丢进一个旧页面，两项一并下掉。 -->
       <div class="item" style="background-color: {{ theme.card }}" onclick="goDiag">
         <text class="it-k" style="color: {{ theme.text }}">诊断</text>
         <text class="it-v">打开</text>
@@ -64,7 +58,6 @@ export default {
   data: {
     ver: '0.0.1',
     nick: '',
-    subj: '',
     themeName: '经典黑',
     clearConfirm: false,
     clearTimer: null,
@@ -126,15 +119,6 @@ export default {
         self.nick = ''
       }
     })
-    storage.get({
-      key: 'cd_subject',
-      success: function (d) {
-        self.subj = d || ''
-      },
-      fail: function () {
-        self.subj = ''
-      }
-    })
   },
 
   goBack() {
@@ -146,12 +130,6 @@ export default {
 
   goNick() {
     router.push({ uri: '/pages/nickname' })
-  },
-  goPill() {
-    router.push({ uri: '/pages/pill' })
-  },
-  goGesture() {
-    router.push({ uri: '/pages/index' })
   },
   goDiag() {
     router.push({ uri: '/pages/diag' })

@@ -1,8 +1,8 @@
 {
   "package": "com.application.watch.countdown",
   "name": "Ev倒数日",
-  "versionName": "0.5.9",
-  "versionCode": 138,
+  "versionName": "0.6.0",
+  "versionCode": 139,
   "minPlatformVersion": 1050,
   "icon": "/logo.png",
   "deviceTypeList": [
@@ -41,20 +41,11 @@
       "pages/cd-list": {
         "component": "cd-list"
       },
-      "pages/index": {
-        "component": "index"
-      },
       "pages/diag": {
         "component": "diag"
       },
-      "pages/exp": {
-        "component": "exp"
-      },
       "pages/nickname": {
         "component": "nickname"
-      },
-      "pages/pill": {
-        "component": "pill"
       },
       "pages/settings": {
         "component": "settings"
