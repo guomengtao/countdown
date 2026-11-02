@@ -69,7 +69,9 @@ UTExportedTypeDeclarations: UTTypeIdentifier = moe.astralsight.astrobox.rpk（co
 
 ## 起名：`ev-install`（别名 `ev-ab` / `ev-rpk`）
 
-这个方案固化成脚本：`~/.workbuddy/scripts/ev-install.sh`。
+这个方案固化成脚本，实体在 **`ev/ev-hooks/workbuddy-scripts/ev-install.sh`**（纳入版本管理，
+提交 `c7ac8f0`）；`~/.workbuddy/scripts/` 下 `ev-install` / `ev-ab` / `ev-rpk` 三个绝对路径软链
+指向它，与 `ev-claim.sh` 等同一种接法。
 
 **为什么叫 `ev-install`**——`ev-*` 一族现有脚本全是「ev + 动词」：`ev-claim`、`ev-commit`、
 `ev-shot`、`ev-morning-cut`、`ev-task-close`。`ev-install` 沿这条线，一眼知道是「装东西」，
