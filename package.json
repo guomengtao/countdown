@@ -4,6 +4,7 @@
   "private": true,
   "description": "倒数日 · 小米手环快应用（独立版）",
   "scripts": {
+    "test": "node test/decorate.test.js",
     "release": "aiot release --enable-jsc",
     "bump": "node scripts/bump-version.js"
   }
