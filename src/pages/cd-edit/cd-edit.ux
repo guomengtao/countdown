@@ -1,0 +1,1000 @@
+<template>
+  <scroll class="page" scroll-y="{{true}}" style="background-color: {{ theme.bg }}">
+    <div class="top">
+      <div class="hd" onclick="goBack">
+        <image class="hd-ic" src="/common/icons/chevron-left-light.png"></image>
+        <text class="hd-t">{{ pageTitle }}</text>
+      </div>
+    </div>
+
+    <!-- 名称：跳统一的中文输入页（全项目只有这一个输入页、只打一份词典），
+         本页不再内嵌 input-method 组件 —— 多一个宿主就多一份崩溃面，
+         且页面 bundle 会平白膨胀（2026-10-21 决策变更，撤销方案 B） -->
+    <div class="field">
+      <text class="field-label" style="color: {{ theme.textSecondary }}">名称</text>
+      <div class="name-row" onclick="openInputPage" style="background-color: {{ theme.card }}">
+        <text class="name-value" if="{{ title.length }}" style="color: {{ theme.text }}">{{ title }}</text>
+        <text class="name-placeholder" if="{{ !title.length }}" style="color: {{ theme.textMuted }}">点此输入名称</text>
+      </div>
+      <text class="err-text" if="{{ errMsg.length }}" style="color: {{ theme.deleteText }}">{{ errMsg }}</text>
+    </div>
+
+    <!-- 日期：官方 picker 内联滚轮（type="text"，手指上下滑动选择）。
+         Vela 无原生 date 控件、selector 也不支持多列级联，
+         故年/月/日各一列 picker 横向并排，取 e.newSelected（2026-10-21 改）。
+         公历/农历是同一组三列的两种取值视图：切换只换 range 与真源，
+         不新增行、不新增页面，落盘永远是公历 dateStr。 -->
+    <div class="field">
+      <div class="label-row">
+        <text class="field-label" style="color: {{ theme.textSecondary }}">日期</text>
+        <div class="cal-toggle" onclick="toggleCalendar" style="background-color: {{ theme.border }}">
+          <text class="cal-toggle-text" style="color: {{ theme.accent }}">{{ calendarText }}</text>
+          <text class="cal-toggle-arrow" style="color: {{ theme.textMuted }}">⇄</text>
+        </div>
+      </div>
+      <div class="picker-head">
+        <text class="picker-unit" style="color: {{ theme.textMuted }}">年</text>
+        <text class="picker-unit" style="color: {{ theme.textMuted }}">月</text>
+        <text class="picker-unit" style="color: {{ theme.textMuted }}">日</text>
+      </div>
+      <div class="picker-row" style="background-color: {{ theme.card }}">
+        <picker class="date-picker" type="text" range="{{ yearStrs }}" selected="{{ yIdx }}"
+                onchange="onYearChange"></picker>
+        <picker class="date-picker" type="text" range="{{ monthStrs }}" selected="{{ mIdx }}"
+                onchange="onMonthChange"></picker>
+        <picker class="date-picker" type="text" range="{{ dayStrs }}" selected="{{ dIdx }}"
+                onchange="onDayChange"></picker>
+      </div>
+      <text class="date-preview" style="color: {{ theme.textSecondary }}">{{ previewLeft }}</text>
+      <text class="date-days" style="color: {{ daysTextColor }}">{{ daysText }}</text>
+    </div>
+
+    <!-- 颜色：6 个固定色（不做自由取色，手环一列卡片色相一多就没区分度）。
+         选中态用「格子淡色底」表示，不用描边 —— Vela 的 border-* 分属性写法不可靠，
+         统一走 background-color 最稳。 -->
+    <div class="field">
+      <div class="label-row">
+        <text class="field-label" style="color: {{ theme.textSecondary }}">颜色</text>
+        <text class="color-name" style="color: {{ colorNameColor }}">{{ colorName }}</text>
+      </div>
+      <div class="color-row">
+        <div for="{{ (i, c) in colorList }}" class="color-cell" onclick="pickColor(i)"
+             style="background-color: {{ c.cellBg }}">
+          <div class="color-dot" style="background-color: {{ c.hex }}"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 首页显示：编辑态专属。
+         原本在列表页的详情弹层里，2026-10-21 弹层删除后搬到这里 ——
+         编辑页就是该条目的全部写入面（名称/日期/颜色/显示开关/删除），
+         列表页退成纯只读。新增态不显示：新条目默认上首页。 -->
+    <div class="field" if="{{ editId.length }}">
+      <div class="switch-row">
+        <text class="switch-text" style="color: {{ theme.textSecondary }}">首页显示</text>
+        <div class="switch-btn" onclick="toggleEnabled"
+             style="background-color: {{ enabled ? theme.accent : theme.btnSecondary }}">
+          <text class="switch-label" style="color: {{ enabled ? theme.bg : theme.btnSecondaryText }}">{{ enabled ? 'ON' : 'OFF' }}</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新增态：保存占满整行 -->
+    <div class="action-row" if="{{ !editId.length }}">
+      <div class="save-btn" onclick="doSave" style="background-color: {{ canSave ? theme.accent : theme.btnSecondary }}">
+        <text class="save-label" style="color: {{ canSave ? theme.bg : theme.btnSecondaryText }}">保存</text>
+      </div>
+    </div>
+
+    <!-- 编辑态：保存 | 删除 并排（80 + 8 + 80 = 168）。
+         删除判据按 editId：原写法 mode==='edit' 恒为假，编辑页从来没有删除入口。
+         两行叠放会超出 490 屏高把删除顶出屏幕，故并排。 -->
+    <div class="action-row" if="{{ editId.length }}">
+      <div class="save-btn2" onclick="doSave" style="background-color: {{ canSave ? theme.accent : theme.btnSecondary }}">
+        <text class="save-label" style="color: {{ canSave ? theme.bg : theme.btnSecondaryText }}">保存</text>
+      </div>
+      <div class="del-btn" onclick="doDelete" style="background-color: {{ delConfirm ? theme.deleteText : theme.deleteBg }}">
+        <text class="save-label" style="color: {{ delConfirm ? theme.bg : theme.deleteText }}">{{ delConfirm ? '确认' : '删除' }}</text>
+      </div>
+    </div>
+  </scroll>
+</template>
+
+<script>
+import router from "@system.router"
+var storage = require("@system.storage")
+const countdown = require("../../data/countdown.js")
+const theme = require("../../data/theme.js")
+const lunar = require("../../data/lunar.js")
+
+var EDIT_ID_KEY = "cd_edit_id"      // 列表页写入：要编辑的条目 id（add 模式不写）
+var NAME_RESULT_KEY = "cd_edit_name"  // cd-name 回填本页名称用的键
+var DELAY_MS = 5000                 // 删除二次确认窗口
+
+export default {
+  private: {
+    pageTitle: "添加",
+    editId: "",
+    title: "",
+    maxLen: "6",
+    iconTheme: "dark",
+    isLight: false,
+    errMsg: "",
+    delConfirm: false,
+    delTimer: null,
+    // 首页显示（原列表页详情弹层的开关，弹层删除后归本页）
+    enabled: true,
+    // ---- 日期：两套日历真源，切换时整组换算，不做实时双向同步 ----
+    // 公历真源（保存值一律由它或农历真源算出，落盘格式不变）
+    calendar: "solar",
+    calendarText: "公历",
+    yearNum: 2026,
+    monthNum: 1,
+    dayNum: 1,
+    // 农历真源（只在 calendar==='lunar' 时可被用户改动）
+    lyNum: 2026,
+    lmNum: 1,
+    ldNum: 1,
+    leapFlag: false,
+    // 年范围比公历多留两档：农历腊月会落到公历次年 1 月、公历 1 月可能属上一个农历年
+    yMin: 2024,
+    yMax: 2032,
+    yearStrs: [],
+    monthStrs: [],
+    monthKeys: [],
+    dayStrs: [],
+    yIdx: 0,
+    mIdx: 0,
+    dIdx: 0,
+    dateStr: "",
+    previewLeft: "",
+    lunarShort: "",
+    daysText: "",
+    daysTextColor: "#7ec8e3",
+    canSave: false,
+    // ---- 颜色 ----
+    colorList: [],
+    colorIdx: 0,
+    colorName: "",
+    colorNameColor: "#7ec8e3",
+    theme: {
+      bg: "#000000",
+      card: "#1c1c1e",
+      cardLight: "#2c2c2e",
+      keyBg: "#1c1c1e",
+      accent: "#0a84ff",
+      text: "#ffffff",
+      textSecondary: "#8e8e93",
+      textMuted: "#6e6e73",
+      border: "#3a3a3c",
+      borderLight: "#2c2c2e",
+      btnSecondary: "#3a3a3c",
+      btnSecondaryText: "#ffffff",
+      deleteBg: "#3a3a3c",
+      deleteText: "#ff453a"
+    }
+  },
+
+  onInit() {
+    var self = this
+    theme.getTheme(function(t, themeName) {
+      self.theme = t
+      self.isLight = false   // 本应用只有深色一套主题
+      self.iconTheme = self.isLight ? 'light' : 'dark'
+      self.refreshColorCells()   // 选中格的淡色底按主题算，主题回来要重刷
+    })
+
+    // 颜色：默认第一档（海蓝），旧数据没有 color 字段就落这里
+    this.applyColor(0)
+
+    // 日期默认今天
+    var now = new Date()
+    self.yMin = now.getFullYear() - 2
+    self.yMax = now.getFullYear() + 6
+    self.yearNum = now.getFullYear()
+    self.monthNum = now.getMonth() + 1
+    self.dayNum = now.getDate()
+    self.syncLunarFromSolar()   // 先备好农历真源，切模式时才有落点
+    self.buildYearStrs()
+    self.buildMonthStrs()
+    self.buildDayStrs()
+    self.syncIdx()
+    self.refreshDate()
+
+    // 编辑模式：读 id 后回填
+    storage.get({
+      key: EDIT_ID_KEY,
+      success: function(data) {
+        if (data) {
+          self.editId = String(data)
+          self.pageTitle = "编辑"
+          self.loadItem(self.editId)
+        } else {
+          self.editId = ""
+          self.pageTitle = "添加"
+        }
+      },
+      fail: function() {
+        self.editId = ""
+        self.pageTitle = "添加倒数日"
+      }
+    })
+  },
+
+  onShow() {
+    // 从 cd-name 返回时回填；其它情况读不到值，保持原样
+    this.drainName()
+  },
+
+  drainName() {
+    var self = this
+    storage.get({
+      key: NAME_RESULT_KEY,
+      success: function(data) {
+        if (data !== null && data !== undefined) {
+          self.title = String(data)
+          self.errMsg = ""
+          self.refreshCanSave()
+          // 立即清掉，避免下次进页误用上一次的结果
+          storage.delete({ key: NAME_RESULT_KEY, success: function() {}, fail: function() {} })
+        }
+      },
+      fail: function() {}
+    })
+  },
+
+  // 跳统一输入页：参数走 storage，返回键单独指定，避免与其它调用方串值
+  openInputPage() {
+    var self = this
+    var max = this.maxLen
+    storage.set({ key: "chinese_input_title", value: "输入名称", success: function() {} })
+    storage.set({ key: "chinese_input_placeholder", value: "输入名称（≤" + max + "字）", success: function() {} })
+    storage.set({ key: "chinese_input_value", value: self.title, success: function() {} })
+    storage.set({ key: "chinese_input_maxlen", value: max, success: function() {} })
+    storage.set({ key: "chinese_input_return_key", value: NAME_RESULT_KEY, success: function() {
+      router.push({ uri: "/pages/cd-name" })
+    }, fail: function() {
+      router.push({ uri: "/pages/cd-name" })
+    }})
+  },
+
+  loadItem(id) {
+    var self = this
+    countdown.load(function(res) {
+      var items = res.items || []
+      for (var i = 0; i < items.length; i++) {
+        if (String(items[i].id) === String(id)) {
+          self.title = items[i].title || ""
+          // 老数据没有 enabled 字段一律视为「显示」，与 countdown.normalizeItem 同口径
+          self.enabled = items[i].enabled !== false
+          self.applyDate(items[i].date)
+          // 颜色：按 hex 反查调色板下标；旧数据无 color → 保持默认第一档
+          var hex = countdown.normalizeColor(items[i].color)
+          if (hex) {
+            for (var c = 0; c < countdown.COLORS.length; c++) {
+              if (countdown.COLORS[c].hex === hex) { self.applyColor(c); break }
+            }
+          }
+          // 当初用农历录入的，编辑时直接开在农历视图 —— 否则用户改完一保存，
+          // 卡片上那行农历就悄悄没了（cal 被写成 solar）
+          if (items[i].cal === "lunar") {
+            self.calendar = "lunar"
+            self.calendarText = "农历"
+            self.buildMonthStrs()
+            self.buildDayStrs()
+            self.syncIdx()
+            self.refreshDate()
+          }
+          break
+        }
+      }
+      self.refreshCanSave()
+    })
+  },
+
+  // 编辑回填：库里存的永远是公历，回填后顺手把农历真源也算好，
+  // 这样用户一进页面就能切「农历」看，不会丢落点
+  applyDate(dateStr) {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(String(dateStr))) return
+    var p = String(dateStr).split("-")
+    var y = parseInt(p[0], 10)
+    var m = parseInt(p[1], 10)
+    var d = parseInt(p[2], 10)
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return
+    this.yearNum = Math.min(this.yMax, Math.max(this.yMin, y))
+    this.monthNum = Math.min(12, Math.max(1, m))
+    this.dayNum = Math.min(this.daysInMonth(this.yearNum, this.monthNum), Math.max(1, d))
+    this.syncLunarFromSolar()
+    this.buildDayStrs()
+    this.clampDay()
+    this.syncIdx()
+    this.refreshDate()
+  },
+
+  // ---- 日期：官方 picker 滚轮（公历 / 农历共用同一组三列）----
+  daysInMonth(y, m) {
+    if (m === 2) {
+      var leap = (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0)
+      return leap ? 29 : 28
+    }
+    if (m === 4 || m === 6 || m === 9 || m === 11) return 30
+    return 31
+  },
+
+  buildYearStrs() {
+    var arr = []
+    for (var y = this.yMin; y <= this.yMax; y++) arr.push(String(y))
+    this.yearStrs = arr
+  },
+
+  // 月列内容随模式变：公历 1..12；农历 12 个月名，闰年多一项「闰X」。
+  // monthKeys 与 monthStrs 严格同下标，滑动时按 key 反查真正选中的月 ——
+  // 闰月让「下标 = 月份 - 1」不再成立，这是唯一不能用算术的地方
+  buildMonthStrs() {
+    var names = []
+    var keys = []
+    var i
+    if (this.calendar === "lunar") {
+      var list = lunar.monthList(this.lyNum)
+      for (i = 0; i < list.length; i++) {
+        names.push(list[i].name)
+        keys.push({ m: list[i].m, leap: list[i].leap })
+      }
+      this.monthStrs = names
+      this.monthKeys = keys
+      return
+    }
+    for (i = 1; i <= 12; i++) names.push(String(i))
+    this.monthStrs = names
+    this.monthKeys = []
+  },
+
+  // 日列随模式 + 年月变：公历看大小月/闰年，农历看 29/30 天
+  buildDayStrs() {
+    var arr = []
+    var max
+    var d
+    if (this.calendar === "lunar") {
+      max = lunar.daysInMonth(this.lyNum, this.lmNum, this.leapFlag)
+      for (d = 1; d <= max; d++) arr.push(lunar.dayName(d))
+    } else {
+      max = this.daysInMonth(this.yearNum, this.monthNum)
+      for (d = 1; d <= max; d++) arr.push(String(d))
+    }
+    this.dayStrs = arr
+  },
+
+  // 真源只有 yearNum/… 与 lyNum/… 两套，三列索引一律派生，不留第二份状态
+  syncIdx() {
+    if (this.calendar === "lunar") {
+      this.yIdx = this.lyNum - this.yMin
+      this.mIdx = this.lunarMonthIdx()
+      this.dIdx = this.ldNum - 1
+      return
+    }
+    this.yIdx = this.yearNum - this.yMin
+    this.mIdx = this.monthNum - 1
+    this.dIdx = this.dayNum - 1
+  },
+
+  lunarMonthIdx() {
+    var keys = this.monthKeys
+    if (!keys.length) return 0
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i].m === this.lmNum && keys[i].leap === this.leapFlag) return i
+    }
+    var fallback = this.lmNum - 1
+    if (fallback < 0) return 0
+    return fallback < keys.length ? fallback : keys.length - 1
+  },
+
+  onYearChange(e) {
+    var y = this.yMin + Number(e.newSelected)
+    if (this.calendar === "lunar") {
+      this.lyNum = y
+      this.buildMonthStrs()     // 闰月随年变，月列必须先重建
+      this.clampLunarMonth()    // 原选的闰月这年可能没有
+      this.buildDayStrs()
+    } else {
+      this.yearNum = y
+      this.buildDayStrs()       // 2 月天数随年变
+    }
+    this.clampDay()
+    this.syncIdx()
+    this.refreshDate()
+  },
+
+  onMonthChange(e) {
+    var i = Number(e.newSelected)
+    if (this.calendar === "lunar") {
+      var key = this.monthKeys[i]
+      if (!key) return
+      this.lmNum = key.m
+      this.leapFlag = key.leap
+    } else {
+      this.monthNum = 1 + i
+    }
+    this.buildDayStrs()
+    this.clampDay()
+    this.syncIdx()
+    this.refreshDate()
+  },
+
+  onDayChange(e) {
+    var d = 1 + Number(e.newSelected)
+    if (this.calendar === "lunar") this.ldNum = d
+    else this.dayNum = d
+    this.syncIdx()
+    this.refreshDate()
+  },
+
+  clampDay() {
+    if (this.calendar === "lunar") {
+      var lmax = lunar.daysInMonth(this.lyNum, this.lmNum, this.leapFlag)
+      if (this.ldNum > lmax) this.ldNum = lmax
+      if (this.ldNum < 1) this.ldNum = 1
+      return
+    }
+    var max = this.daysInMonth(this.yearNum, this.monthNum)
+    if (this.dayNum > max) this.dayNum = max
+    if (this.dayNum < 1) this.dayNum = 1
+  },
+
+  // 换年后原选的「闰X月」可能不存在 → 退回同名正常月
+  clampLunarMonth() {
+    if (!this.leapFlag) return
+    if (!lunar.isLeapMonth(this.lyNum, this.lmNum)) this.leapFlag = false
+  },
+
+  // 公历真源 → 农历真源（单向推导，仅初始化/回填/切换时调用）
+  syncLunarFromSolar() {
+    var l = lunar.fromSolar(this.yearNum, this.monthNum, this.dayNum)
+    if (!l) return
+    this.lyNum = l.y
+    this.lmNum = l.m
+    this.ldNum = l.d
+    this.leapFlag = l.isLeap
+  },
+
+  // 切换做整组换算一次，而不是两套真源实时互相同步 ——
+  // 后者在闰月边界（该年无闰月、29↔30 天）会来回抖动
+  toggleCalendar() {
+    if (this.calendar === "lunar") {
+      var s = lunar.toSolar(this.lyNum, this.lmNum, this.ldNum, this.leapFlag)
+      if (s) {
+        this.yearNum = Math.min(this.yMax, Math.max(this.yMin, s.y))
+        this.monthNum = s.m
+        this.dayNum = s.d
+      }
+      this.calendar = "solar"
+      this.calendarText = "公历"
+    } else {
+      var l = lunar.fromSolar(this.yearNum, this.monthNum, this.dayNum)
+      if (l) {
+        this.lyNum = Math.min(this.yMax, Math.max(this.yMin, l.y))
+        this.lmNum = l.m
+        this.ldNum = l.d
+        this.leapFlag = l.isLeap
+      }
+      this.calendar = "lunar"
+      this.calendarText = "农历"
+    }
+    this.buildMonthStrs()
+    this.buildDayStrs()
+    this.clampLunarMonth()
+    this.clampDay()
+    this.syncIdx()
+    this.refreshDate()
+  },
+
+  pad(n) {
+    return n < 10 ? "0" + n : "" + n
+  },
+
+  // dateStr 永远是公历（唯一保存口径），农历只是输入时的视图
+  refreshDate() {
+    if (this.calendar === "lunar") {
+      this.dateStr = lunar.toSolarStr(this.lyNum, this.lmNum, this.ldNum, this.leapFlag)
+      this.lunarShort = lunar.fullText(this.lyNum, this.lmNum, this.ldNum, this.leapFlag)
+      // 不加「农历」前缀：切换胶囊本身已显示「农历」，多这两个字会把
+      // 「闰六月初一 · 已过441天」顶出 168px 内容区、被 ellipsis 吃掉末尾
+      this.previewLeft = this.lunarShort
+    } else {
+      this.dateStr = this.yearNum + "-" + this.pad(this.monthNum) + "-" + this.pad(this.dayNum)
+      var l = lunar.fromSolar(this.yearNum, this.monthNum, this.dayNum)
+      this.lunarShort = l ? lunar.fullText(l.y, l.m, l.d, l.isLeap) : ""
+      this.previewLeft = this.dateStr
+    }
+    var d = countdown.computeItem(this.dateStr)
+    if (d > 0) {
+      this.daysText = "剩 " + d + " 天"
+      this.daysTextColor = this.theme.accent
+    } else if (d === 0) {
+      this.daysText = "就是今天"
+      this.daysTextColor = "#ff7a45"
+    } else {
+      this.daysText = "已过 " + (-d) + " 天"
+      this.daysTextColor = this.theme.deleteText
+    }
+    this.refreshCanSave()
+  },
+
+  // ---- 颜色 ----
+  // 选中态的视觉只靠「格子淡色底 + 色点本身」，不做描边/对勾：
+  // 192 屏上一圈描边会把 28px 的格子挤成 22px，反而更难点。
+  applyColor(idx) {
+    var arr = countdown.COLORS
+    if (idx < 0 || idx >= arr.length) idx = 0
+    this.colorIdx = idx
+    this.colorName = arr[idx].name
+    this.colorNameColor = countdown.adaptColor(arr[idx].hex, this.isLight)
+    this.refreshColorCells()
+  },
+
+  pickColor(i) {
+    this.applyColor(i)
+  },
+
+  // 供列表页读的落盘值（空串表示用主题色，兼容没有 color 字段的旧数据）
+  colorValue() {
+    var c = countdown.COLORS[this.colorIdx]
+    return c ? c.hex : ""
+  },
+
+  refreshColorCells() {
+    var arr = countdown.COLORS
+    var out = []
+    for (var i = 0; i < arr.length; i++) {
+      out.push({
+        hex: arr[i].hex,
+        name: arr[i].name,
+        cellBg: i === this.colorIdx ? countdown.tintColor(arr[i].hex, this.isLight ? 0.22 : 0.32) : "transparent"
+      })
+    }
+    this.colorList = out
+  },
+
+  refreshCanSave() {
+    this.canSave = String(this.title || "").replace(/\s/g, "").length > 0
+  },
+
+  // ---- 保存 ----
+  doSave() {
+    var self = this
+    var name = (this.title || "").replace(/^\s+|\s+$/g, "")
+    if (!name) {
+      this.errMsg = "请先输入名称"
+      return
+    }
+    // 农历真源若落在表范围外（1900-2099）toSolarStr 会返回空串，不能落盘
+    if (!this.dateStr) {
+      this.errMsg = "日期超出可换算范围"
+      return
+    }
+    countdown.load(function(res) {
+      var items = res.items || []
+      // 落盘三件套：date 永远是公历；cal/lunarText 只决定卡片上多不多一行农历；
+      // color 存调色板 hex（空串=跟随主题色）
+      var patch = {
+        date: self.dateStr,
+        cal: self.calendar === "lunar" ? "lunar" : "solar",
+        lunarText: self.calendar === "lunar" ? self.lunarShort : "",
+        color: self.colorValue()
+      }
+      if (self.editId) {
+        var idx = countdown.findIndexById(items, self.editId)
+        if (idx >= 0) {
+          items[idx].title = name
+          items[idx].date = patch.date
+          items[idx].cal = patch.cal
+          items[idx].lunarText = patch.lunarText
+          items[idx].color = patch.color
+          items[idx].enabled = self.enabled
+        }
+      } else {
+        items.push({
+          id: countdown.newId(),
+          title: name,
+          date: patch.date,
+          cal: patch.cal,
+          lunarText: patch.lunarText,
+          color: patch.color,
+          enabled: true,
+          createdAt: Date.now()
+        })
+      }
+      countdown.save(items, function() {
+        router.back()
+      })
+    })
+  },
+
+  // ---- 删除（页内二次确认 5 秒） ----
+  doDelete() {
+    var self = this
+    if (!this.editId) return
+    if (this.delConfirm) {
+      countdown.load(function(res) {
+        var items = res.items || []
+        var idx = countdown.findIndexById(items, self.editId)
+        if (idx >= 0) items.splice(idx, 1)
+        countdown.save(items, function() {
+          clearTimeout(self.delTimer)
+          router.back()
+        })
+      })
+      return
+    }
+    this.delConfirm = true
+    clearTimeout(this.delTimer)
+    this.delTimer = setTimeout(function() {
+      self.delConfirm = false
+    }, DELAY_MS)
+  },
+
+  // ---- 首页显示开关（瞬时状态，随保存一起落盘）----
+  // 不做「点一下立刻存」：本页所有改动都走保存按钮一个出口，
+  // 否则取消返回时开关已经生效，用户会以为没保存成功。
+  toggleEnabled() {
+    this.enabled = !this.enabled
+  },
+
+  goBack() {
+    router.back()
+  },
+
+  onDestroy() {
+    if (this.delTimer) {
+      clearTimeout(this.delTimer)
+      this.delTimer = null
+    }
+    this.theme = null
+  }
+}
+</script>
+
+<style>
+
+/* ================================================================
+   胶囊屏 192×490 基准（内容区 168），不依赖 media query 命中手环 9。
+   高度预算：header 42 + 名称块 66 + 日期块（label 24 + 单位 18 + picker
+            约 160 + 预览 20）≈ 222 + 保存 58 ≈ 388 / 490。
+   农历切换按钮塞进 label 行内，不额外占高度。
+   铁律：禁 @media screen and；只用 (shape: rect) 做大屏增量。
+   本页不承载键盘（跳 cd-name），因此没有 ime-host 相关样式。
+   ================================================================ */
+
+/* 2026-10-21 规则 §8.4：颜色行两行 + 44 热区后内容变高，页面改为可滚动。
+   scroll 容器要显式高度，故 flex:1 之外补 height:100%。 */
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  padding: 6px 12px 12px 12px;
+}
+
+.top {
+  height: 48px;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+}
+
+.hd {
+  width: 160px;
+  height: 48px;
+  border-radius: 24px;
+  background-color: #3a3a3c;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.hd-ic {
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
+  object-fit: contain;
+}
+
+.hd-t {
+  font-size: 28px;
+  color: #ffffff;
+  lines: 1;
+}
+
+
+.field {
+  flex-direction: column;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.field-label {
+  font-size: 20px;
+  line-height: 26px;
+  margin-bottom: 2px;
+}
+
+/* 日期行：label 左、公历/农历切换胶囊右，高度与 label 对齐，不额外占位 */
+.label-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  flex-shrink: 0;
+}
+
+.label-row .field-label {
+  margin-bottom: 0;
+}
+
+/* 26 → 44：原来一个 26 高的胶囊，手环上根本点不中（规则 §8.3） */
+.cal-toggle {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 44px;
+  border-radius: 22px;
+  flex-shrink: 0;
+}
+
+.cal-toggle-text {
+  font-size: 20px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.cal-toggle-arrow {
+  font-size: 18px;
+  line-height: 24px;
+  margin-left: 3px;
+}
+
+/* 名称行：整行 168×44 热区 */
+.name-row {
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  padding: 0 10px;
+  flex-shrink: 0;
+}
+
+.name-value {
+  flex: 1;
+  font-size: 22px;
+  line-height: 28px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.name-placeholder {
+  flex: 1;
+  font-size: 20px;
+  line-height: 28px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.name-arrow {
+  width: 16px;
+  font-size: 24px;
+  line-height: 34px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.err-text {
+  font-size: 20px;
+  line-height: 26px;
+  margin-top: 2px;
+}
+
+/* 日期：官方 picker 内联滚轮。高度由组件滚轮决定（实测约 160px），
+   不设 height —— 硬压会裁掉上下候选项，滚动手感变差 */
+.picker-head {
+  flex-direction: row;
+  justify-content: space-around;
+  width: 100%;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+/* 单位字（年/月/日）曾经 13px——模拟器上勉强，真机上等于没有。
+   18px 是「装饰性提示」档，与列里非选中行同号，视觉成组。 */
+.picker-unit {
+  width: 52px;
+  font-size: 18px;
+  line-height: 26px;
+  text-align: center;
+}
+
+.picker-row {
+  flex-direction: row;
+  justify-content: space-around;
+  width: 100%;
+  border-radius: 10px;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+
+/* selected-* 是 picker 的专用样式属性（官方支持），控制中间高亮行。
+   非选中行必须大幅弱化 —— 三列各三行候选全是白字时视觉上像 3×3 九宫格
+   「三行日期」，很乱；压到接近背景的暗灰后焦点只落在中间一行（2026-10-21） */
+.date-picker {
+  width: 52px;
+  font-size: 18px;
+  color: #3d3d5c;
+  selected-font-size: 22px;
+  selected-color: #7ec8e3;
+  selected-background-color: #123a63;
+}
+
+/* 预览两行：第一行日期（公历 2026-09-25 / 农历 八月十五），第二行剩余天数。
+   合并成一行在 20px 下放不下（10 个半角 + 6 个汉字 ≈ 183px > 168px），
+   曾经用 lines:1 省略，结果「已过453天」被吃成「已过4…」—— 宁可多一行也不截断 */
+.date-preview {
+  font-size: 20px;
+  line-height: 26px;
+  margin-top: 0;
+  text-align: center;
+  width: 100%;
+}
+
+.date-days {
+  font-size: 22px;
+  line-height: 31px;
+  text-align: center;
+  width: 100%;
+  font-weight: bold;
+}
+
+/* 颜色：6 格 × 28px = 168，正好铺满内容区。
+   格子 28 是点击热区，色点 20 是视觉尺寸 —— 热区比色点大一圈才点得准。 */
+/* 6 色 ×44px 一排需要 264px，168 装不下 —— 按 §8.4 不减尺寸，改为 3 列换行：
+   3×44 + 2×8 = 148 ≤ 168。flex-wrap 项目内已有 5 处用例，可依赖。 */
+.color-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.color-cell {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  margin-right: 8px;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+}
+
+/* 选中的颜色名放右端，既是反馈也是色盲用户的唯一可靠标识 */
+.color-name {
+  font-size: 18px;
+  line-height: 22px;
+  flex-shrink: 0;
+}
+
+/* 首页显示开关行：左标签右开关，横排一行 28px（竖排要多占 26px，
+   编辑态本来就已经顶到 490 底边）。
+   高度是算出来的：192×490 上本页原有余量约 30px，这一行 + 收窄的间距
+   一共只多占 26px，保证「保存/删除」不会被顶出屏幕。 */
+.switch-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 28px;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+/* 横向标签不折行：「首页显示」4 字 ×20 = 80px，开关 60，留 28 余量。
+   ⚠️ 不能写成 `.switch-row .field-label` —— Vela 编译会静默丢弃后代选择器 */
+.switch-text {
+  font-size: 20px;
+  line-height: 26px;
+  flex-shrink: 0;
+}
+
+.switch-btn {
+  width: 60px;
+  height: 44px;
+  border-radius: 22px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.switch-label {
+  font-size: 18px;
+  line-height: 22px;
+  text-align: center;
+}
+
+.action-row {
+  flex-direction: row;
+  justify-content: center;
+  width: 100%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.save-btn {
+  width: 168px;
+  height: 48px;
+  border-radius: 24px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 编辑态两键并排：80 + 8 + 80 = 168，与卡片内容区同宽 */
+.save-btn2 {
+  width: 80px;
+  height: 44px;
+  border-radius: 22px;
+  justify-content: center;
+  align-items: center;
+}
+
+.del-btn {
+  width: 80px;
+  height: 44px;
+  border-radius: 22px;
+  justify-content: center;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.save-label {
+  font-size: 20px;
+  line-height: 26px;
+  text-align: center;
+}
+
+/* 大屏增量：只放大热区，不改字号体系 */
+@media (shape: rect) {
+  .page {
+    padding: 24px 20px 12px 20px;
+  }
+
+  .name-row {
+    height: 52px;
+  }
+
+  /* 大屏只放宽列宽，picker 高度由组件滚轮决定，不干预 */
+  .picker-unit,
+  .date-picker {
+    width: 88px;
+  }
+
+  .save-btn {
+    width: 296px;
+    height: 52px;
+    border-radius: 26px;
+  }
+
+  .save-btn2 {
+    width: 144px;
+  }
+
+  .del-btn {
+    width: 144px;
+  }
+}
+</style>

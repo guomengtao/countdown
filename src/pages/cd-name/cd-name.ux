@@ -1,0 +1,265 @@
+<import name="input-method" src="../../components/InputMethod/InputMethod.ux"></import>
+<!-- 通用文字输入页（从 class-schedule 的 pages/chinese-input 改写）
+     为什么要单独一页、而不是在 cd-edit 里内嵌键盘：
+     cd-edit 的根节点是 <scroll>（表单比一屏高），键盘组件内部是 position:absolute 贴底，
+     塞进滚动容器会同时出现「键盘跟着滚走」和「flex 高度塌陷」两个问题。
+     独立页 + storage 回传是课程表验证过的路径，这里沿用同一套 storage 契约，
+     使 cd-edit 的 openInputPage 只需改一个 URI。
+
+     storage 契约（键名沿用 chinese_input_*，与课程表保持一致）：
+       读 chinese_input_title / placeholder / value / maxlen / return_key
+       写 return_key
+
+     三条真机硬约束（照抄 pages/nickname/nickname.ux，都是实测结论）：
+     - screentype 必须写死 "rect"，pill-shaped 在 212×520 白屏
+     - input-method 必须 onReady 后延迟 300ms 挂载，首帧挂载会被静默丢弃
+     - .ime-host 必须 flex:1 且有 min-height，.top 必须 flex-shrink:0
+     字号只用 ev-six 四档：44 / 30 / 28 / 24 -->
+
+<template>
+  <div class="page">
+    <div class="top">
+      <div class="hd" onclick="goBack">
+        <image class="hd-ic" src="/common/icons/chevron-left-light.png"></image>
+        <text class="hd-t">{{ pageTitle }}</text>
+      </div>
+    </div>
+
+    <!-- 系统输入法机型（手机/平板等）：用原生 input，由系统弹键盘 -->
+    <div class="disp" if="{{ sysIme }}">
+      <input class="sys-input" type="text" value="{{ text }}" maxlength="{{ maxLen }}"
+             placeholder="{{ placeholder }}" onchange="onSysInput" />
+    </div>
+    <!-- 手环等无系统输入法的机型：自绘文本，字符由 input-method 组件送入 -->
+    <div class="disp" if="{{ !sysIme }}">
+      <text class="txt" if="{{ text.length }}">{{ text }}</text>
+      <text class="ph" if="{{ !text.length }}">{{ placeholder }}</text>
+    </div>
+
+    <div class="ok" onclick="save">
+      <text class="ok-t">保存</text>
+    </div>
+
+    <div class="ime-host" if="{{ imeOn }}">
+      <input-method
+        hide="{{ false }}"
+        keyboardtype="QWERTY"
+        maxlength="{{ maxLen }}"
+        vibratemode="short"
+        screentype="rect"
+        dictionarypath="/components/InputMethod/assets/dictionary/"
+        oncomplete="onChar"
+        ondelete="onDel"
+      ></input-method>
+    </div>
+    <div class="ime-gap" if="{{ !imeOn }}"></div>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import storage from '@system.storage'
+import device from '@system.device'
+
+var DEFAULT_RETURN_KEY = 'cd_edit_name'
+
+export default {
+  data: {
+    pageTitle: '输入名称',
+    placeholder: '输入名称',
+    text: '',
+    maxLen: 6,
+    imeOn: false,
+    sysIme: false,        // true = 交给系统输入法，不挂自绘键盘
+    returnKey: DEFAULT_RETURN_KEY
+  },
+
+  onInit() {
+    const self = this
+    // 输入法按机型自动选择：
+    //   手环（deviceType === 'watch'）没有系统输入法，只能用应用内自绘键盘；
+    //   手机/平板/车机等有系统输入法，交给系统弹，不再叠一层自绘键盘（那样
+    //   等于逼用户用小键盘打字）。
+    // getInfo 失败或字段缺失时保持默认 false —— 退回自绘键盘这条已真机验证的路，
+    // 不会出现「两边都不弹、输不了字」的死局。
+    device.getInfo({
+      success: function (info) {
+        var t = (info && info.deviceType) || ''
+        self.sysIme = !!t && t !== 'watch'
+      },
+      fail: function () {}
+    })
+    // 五个参数并行读，互不依赖；读不到就保持默认值，不阻塞页面渲染
+    storage.get({
+      key: 'chinese_input_title',
+      success: function (d) { if (d) self.pageTitle = d },
+      fail: function () {}
+    })
+    storage.get({
+      key: 'chinese_input_placeholder',
+      success: function (d) { if (d) self.placeholder = d },
+      fail: function () {}
+    })
+    storage.get({
+      key: 'chinese_input_value',
+      success: function (d) { if (d) self.text = String(d) },
+      fail: function () {}
+    })
+    storage.get({
+      key: 'chinese_input_maxlen',
+      success: function (d) {
+        var n = parseInt(d, 10)
+        if (n > 0) self.maxLen = n
+      },
+      fail: function () {}
+    })
+    storage.get({
+      key: 'chinese_input_return_key',
+      success: function (d) { if (d) self.returnKey = String(d) },
+      fail: function () {}
+    })
+  },
+
+  onReady() {
+    const self = this
+    // 关键：首帧挂载键盘会被静默丢弃（nickname 页实测）
+    // 系统输入法机型不挂自绘键盘，只保留输入框
+    setTimeout(function () {
+      if (!self.sysIme) self.imeOn = true
+    }, 300)
+  },
+
+  onChar(evt) {
+    const c = (evt && evt.detail && evt.detail.content) || ''
+    if (!c) return
+    const max = this.maxLen
+    const next = this.text + c
+    this.text = next.length > max ? next.slice(0, max) : next
+  },
+
+  // 原生 input 的取值：Vela 的 onchange 回调形如 { value }
+  onSysInput(evt) {
+    var v = (evt && evt.value)
+    if (v === undefined && evt && evt.detail) v = evt.detail.value
+    if (v === undefined) v = ''
+    var max = this.maxLen
+    v = String(v)
+    this.text = v.length > max ? v.slice(0, max) : v
+  },
+
+  onDel() {
+    this.text = this.text.length ? this.text.slice(0, this.text.length - 1) : ''
+  },
+
+  save() {
+    storage.set({
+      key: this.returnKey,
+      value: this.text || '',
+      success: function () { router.back() },
+      fail: function () { router.back() }
+    })
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  flex-direction: column;
+  align-items: center;
+}
+
+.top {
+  height: 48px;
+  flex-shrink: 0;
+  margin-top: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.hd {
+  width: 160px;
+  height: 48px;
+  border-radius: 24px;
+  background-color: #3a3a3c;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+.hd-ic {
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
+  object-fit: contain;
+}
+.hd-t {
+  font-size: 28px;
+  color: #ffffff;
+  lines: 1;
+}
+
+.sys-input {
+  width: 100%;
+  height: 56px;
+  font-size: 30px;
+  color: #ffffff;
+  background-color: transparent;
+}
+
+.disp {
+  width: 176px;
+  height: 52px;
+  margin-top: 10px;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  background-color: #1c1c1e;
+  border-radius: 12px;
+}
+
+.txt {
+  font-size: 30px;
+  color: #ffffff;
+  lines: 1;
+}
+
+.ph {
+  font-size: 24px;
+  color: #8e8e93;
+}
+
+.ok {
+  width: 176px;
+  height: 44px;
+  margin-top: 8px;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  background-color: #0a84ff;
+  border-radius: 22px;
+}
+
+.ok-t {
+  font-size: 28px;
+  color: #ffffff;
+}
+
+.ime-host {
+  flex: 1;
+  flex-shrink: 0;
+  min-height: 250px;
+  width: 100%;
+  flex-direction: column;
+}
+
+.ime-gap {
+  flex: 1;
+  width: 100%;
+}
+</style>

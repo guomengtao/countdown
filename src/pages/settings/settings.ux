@@ -13,6 +13,12 @@
     </div>
 
     <div class="list">
+      <!-- 倒数日排第一：它是本应用的主功能，不是配置项；
+           放在这里是因为设置页是所有页面的索引，位置固定好找 -->
+      <div class="item" onclick="goCdList">
+        <text class="it-k">倒数日</text>
+        <text class="it-v">打开</text>
+      </div>
       <div class="item" onclick="goNick">
         <text class="it-k">昵称</text>
         <text class="it-v" if="{{ nick }}">{{ nick }}</text>
@@ -86,6 +92,10 @@ export default {
   goBack() {
     router.back()
   },
+  goCdList() {
+    router.push({ uri: '/pages/cd-list' })
+  },
+
   goNick() {
     router.push({ uri: '/pages/nickname' })
   },

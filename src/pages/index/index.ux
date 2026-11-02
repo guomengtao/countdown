@@ -24,7 +24,7 @@
            Vela 的 swipe 事件不冒泡到父容器 —— 只挂 .mid 时，手指落在
            「倒数日」「还没设置昵称」这些 text 上完全收不到事件，
            只有落在提示行（div 包 text）才有反应。所以逐块挂 -->
-      <text class="title" onswipe="onSwipe">倒数日</text>
+      <text class="title" onswipe="onSwipe">菜单</text>
       <text class="sub" onswipe="onSwipe">v{{ ver }}</text>
 
       <div class="nick-box" onswipe="onSwipe">
@@ -47,14 +47,20 @@
       </div>
     </div>
 
-    <!-- 主按钮给「设置科目」：当前真机测试主线 -->
-    <div class="btn primary" onclick="goPill">
+    <!-- 主按钮改给「我的倒数日」：0.1.0 起本应用有了真实的多条目倒数日能力，
+         它才是主功能；「设置科目」降为次按钮。
+         按钮数量从 3 行增到 4 行，已用 192×490 版面还原图验证不溢出。 -->
+    <div class="btn primary" onclick="goCdList">
+      <text class="btn-t">返回列表</text>
+    </div>
+
+    <div class="btn" onclick="goPill">
       <text class="btn-t">设置科目</text>
     </div>
 
-    <div class="btn" onclick="goNick">
-      <text class="btn-t">设置昵称</text>
-    </div>
+    <!-- 设置昵称按钮移出首页（0.1.0）：加入「我的倒数日」后首页变成 4 行，
+         192×490 上底部只剩 10px 余量，实测已贴边。昵称是一次性设置，
+         保留在设置页入口即可（首页上滑/长按均可进设置）。 -->
 
     <!-- 底部并排：诊断 + 退出。退出是兜底动作 —— 只要本应用在手势上占过位，
          系统的右划退出就可能失效，必须给用户一个明确的出口 -->
@@ -394,6 +400,17 @@ export default {
     try {
       router.push({ uri: '/pages/pill' })
     } catch (e) {}
+  },
+
+  // 本页由首页（cd-list）push 进来，正常情况 back 即可；无栈时兜底 push。
+  // 原来这里 push cd-list，会在栈里叠成 cd-list→index→cd-list，
+  // 连按几次就积一层，back 语义全乱。
+  goCdList() {
+    try {
+      router.back()
+    } catch (e) {
+      try { router.push({ uri: '/pages/cd-list' }) } catch (e2) {}
+    }
   },
 
   goPill() {
