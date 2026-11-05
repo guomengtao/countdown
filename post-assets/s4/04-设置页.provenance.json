@@ -1,0 +1,18 @@
+{
+  "schema": "ev-shot/1",
+  "tool": "ev-emu-cli/vela.py",
+  "created": "2026-11-05T22:24:14+08:00",
+  "devices": [
+    {
+      "serial": "emulator-11000",
+      "avd": "xiaomi_s4",
+      "screen": "466x466",
+      "skin": "xiaomi_s4"
+    }
+  ],
+  "size": [
+    601,
+    973
+  ],
+  "sha256": "c271258d64446d0e2c7f9c5722328e03a378c263e8de47175d23237933b002a4"
+}
