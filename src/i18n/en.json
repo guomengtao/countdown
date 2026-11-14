@@ -2,6 +2,7 @@
   "message": {
     "settings": {
       "title": "Set",
+      "language": "Lang",
       "theme": "Theme",
       "nickname": "Name",
       "unset": "None",

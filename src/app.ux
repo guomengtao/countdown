@@ -1,12 +1,40 @@
 <script>
 const probe = require('./common/probe.js')
+const storage = require('@system.storage')
+
+/* 语言偏好：与 pages/settings/settings.ux 共用同一个 key，改一处必须同步另一处。
+ * 存完整 locale 字符串（auto / zh-CN / en），不是布尔——加日语时只扩数组。 */
+const LOCALE_KEY = 'cd_locale'
+const LOCALES = ['auto', 'zh-CN', 'en']
+
+function applyLocale(v) {
+  try {
+    const configuration = require('@system.configuration')
+    if (v === 'auto') {
+      const sys = configuration.getLocale()
+      if (sys && sys.language) {
+        configuration.setLocale({ language: sys.language, countryOrRegion: sys.countryOrRegion || '' })
+      }
+      return
+    }
+    const parts = v.split('-')
+    configuration.setLocale({ language: parts[0], countryOrRegion: parts[1] || '' })
+  } catch (e) {}
+}
 
 export default {
   onCreate() {
     probe.load()
+    // 多语言：官方明确「应用重新进入时语言环境会重置为系统语言」，
+    // 所以每次冷启动都要按用户存下的偏好重新 setLocale，否则手动选的语言一次重启就丢。
+    // configuration 官方标 1060+，本工程 minPlatformVersion 1050；取不到时静默跳过，不影响启动。
+    storage.get({
+      key: LOCALE_KEY,
+      success: function (v) {
+        if (LOCALES.indexOf(v) >= 0 && v !== 'auto') applyLocale(v)
+      }
+    })
     // 多语言试点：把框架当前 locale 记进探针，装机后可直接判读系统语言匹配是否生效。
-    // configuration 官方标 1060+，本工程 minPlatformVersion 1050；取不到时静默记 unsupported，
-    // 不影响启动，也不改任何页面行为。详见 docs/多语言设置页试点与日语扩展-20261114.md
     let locale = 'unsupported'
     try {
       const configuration = require('@system.configuration')

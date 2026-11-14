@@ -1,10 +1,17 @@
 <!-- 设置页（2026-11-02 v0.0.120 新建）
-     入口：首页「上滑」「长按」。
-     定位：手势总入口 / 功能索引页，将来新功能都往这里挂。
+     入口：首页「设置」按钮（屏幕坐标 155,428）。手势上滑会触发手环应用切换，别用。
+     定位：功能索引页，将来新功能都往这里挂。
      页头与 pill、nickname 两页同构（160×48 居中胶囊），不要各写一套。
      字号只走 ev-six 四档：44 / 30 / 28 / 24
      2026-11-14 多语言试点：静态文案走 $t，词表见 src/i18n/，长度规则见总纲 §3.21 第 9 条。
-     ⚠️ 布局与字号一律不动——译文必须塞进原文那一行（行级不回归判据）。 -->
+
+     2026-11-14 装机实测后的版式纠正（evtask-D-guomengtao-261114-kpkmaw）：
+     「主题」行原来是「主题」标签 + 主题名双列，.item 内容宽仅 142px@24px = 4.44P，
+     而中文「主题+经典黑」=5.00P、「主题+墨绿护眼」=6.00P，英文 Theme+Violet=6.05P，
+     双列根本放不下——这是页面自身违反 ev-six，不是翻译问题。
+     按用户裁定：先纠正版式再谈翻译。改为单值行（只显示当前主题名），
+     中文 4P / 英文 3.3P 均进线；禁止靠缩字号或截断来硬塞。
+     屏高核算：6 项 × 54 = 324，+ 页头 60 + margin 12 + 版号 36 = 432 < 490，仍不出滚动条。 -->
 <template>
   <div class="page" style="background-color: {{ theme.bg }}">
     <div class="top">
@@ -15,14 +22,23 @@
     </div>
 
     <div class="list">
+      <!-- 主题：单值行。去掉左侧「主题」标签是为了腾出 2P——双列时每列只剩 2.2P，
+           连 3 字中文主题名都放不下。点击仍进主题页，语义由「当前值可点」承担。 -->
       <div class="item" style="background-color: {{ theme.card }}" onclick="goTheme">
-        <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.theme') }}</text>
-        <text class="it-v" style="color: {{ theme.textSecondary }}">{{ themeName }}</text>
+        <text class="it-k" style="color: {{ theme.text }}">{{ themeName }}</text>
       </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="goNick">
         <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.nickname') }}</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ nick }}">{{ nick }}</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ !nick }}">{{ $t('message.settings.unset') }}</text>
+      </div>
+      <!-- 语言：点一下按 自动 → 中文 → EN → 自动 循环。
+           存完整 locale 字符串（不是布尔），将来加日语只需扩 LOCALES 数组，
+           不需要改页面结构——见根仓 docs/手环多语言资源结构与日语扩展规划-20261114.md。
+           值的可读文案固定为 Auto / 中文 / EN（三种界面语言下都不超 4.44P）。 -->
+      <div class="item" style="background-color: {{ theme.card }}" onclick="cycleLocale">
+        <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.language') }}</text>
+        <text class="it-v" style="color: {{ theme.textSecondary }}">{{ localeLabel }}</text>
       </div>
       <!-- 2026-11-02 发布前清理：删掉「科目」与「手势」两项。
            它们是从课程表项目带过来的遗留入口——「科目」跳 pages/pill（键盘宿主测试页）、
@@ -67,13 +83,21 @@ import countdown from '../../data/countdown.js'
 const ARM_KEY = 'cd_clear_arm'
 let armTimer = null
 
+/* 语言：与 app.ux 共用同一个 storage key，改动必须两边同步。
+ * 存完整 locale 字符串（auto / zh-CN / en），不用布尔「是否英文」——
+ * 加日语、繁体时只扩数组，不改调用方，避免返工。 */
+const LOCALE_KEY = 'cd_locale'
+const LOCALES = ['auto', 'zh-CN', 'en']
+
 export default {
   data: {
     ver: '0.0.1',
     nick: '',
     themeName: '经典黑',
     clearConfirm: false,
-    theme: {}
+    theme: {},
+    locale: 'auto',
+    localeLabel: 'Auto'
   },
 
   onInit() {
@@ -83,6 +107,7 @@ export default {
     } catch (e) {}
     this.loadTheme()
     this.loadAll()
+    this.loadLocale()
   },
 
   onShow() {
@@ -151,6 +176,66 @@ export default {
     })
   },
 
+  // 值的可读文案：三种界面语言下都用同一组短标识，避免「English」这种 7 字母值超宽。
+  labelOf(v) {
+    if (v === 'zh-CN') return '中文'
+    if (v === 'en') return 'EN'
+    return 'Auto'
+  },
+
+  loadLocale() {
+    const self = this
+    storage.get({
+      key: LOCALE_KEY,
+      success: function (v) {
+        const val = LOCALES.indexOf(v) >= 0 ? v : 'auto'
+        self.locale = val
+        self.localeLabel = self.labelOf(val)
+      },
+      fail: function () {
+        self.locale = 'auto'
+        self.localeLabel = 'Auto'
+      }
+    })
+  },
+
+  cycleLocale() {
+    const self = this
+    const i = LOCALES.indexOf(this.locale)
+    const next = LOCALES[(i + 1) % LOCALES.length]
+    this.locale = next
+    this.localeLabel = this.labelOf(next)
+    storage.set({
+      key: LOCALE_KEY,
+      value: next,
+      complete: function () {
+        self.applyLocale(next)
+        // 官方未明确 setLocale 后模板是否自动重算，稳妥做法是重建本页。
+        // 重建后 onInit 会读 storage 拿到新值，语言不丢。
+        setTimeout(function () {
+          router.replace({ uri: '/pages/settings' })
+        }, 150)
+      }
+    })
+  },
+
+  applyLocale(v) {
+    try {
+      const configuration = require('@system.configuration')
+      if (v === 'auto') {
+        const sys = configuration.getLocale()
+        if (sys && sys.language) {
+          configuration.setLocale({ language: sys.language, countryOrRegion: sys.countryOrRegion || '' })
+        }
+        return
+      }
+      const parts = v.split('-')
+      configuration.setLocale({ language: parts[0], countryOrRegion: parts[1] || '' })
+    } catch (e) {
+      // 平台 <1060 或未开放 configuration 时静默降级：仍跟随系统语言，不影响其他功能。
+    }
+  },
+
   goBack() {
     router.back()
   },
@@ -208,9 +293,9 @@ export default {
 }
 
 /* 条目行：宽 168 居中（192 屏左右各留 12）。
-   7 项 × 54 = 378，加页头 72 与版号 30 = 480 < 490，192×490 屏不出滚动条。
-   演变：6 项 52/8 → 8 项 44/4 → 删掉冗余「倒数日」后回到 7 项，放宽到 48/6。
-   ⚠️ 再加到 9 项就会溢出，届时必须把 .list 换成 scroll 容器
+   6 项 × 54 = 324，加页头 60 + margin 12 + 版号 36 = 432 < 490，192×490 屏不出滚动条。
+   演变：6 项 52/8 → 8 项 44/4 → 删冗余「倒数日」回到 7 项 48/6 → 主题改单值 + 加语言仍 6 项。
+   ⚠️ 再加到 8 项（432+54=486 擦边、含版号已溢出）就必须把 .list 换成 scroll 容器
    （参照 theme.ux：scroll 要同时有 flex-direction:column 与确定高度）。 */
 .list {
   width: 168px;
