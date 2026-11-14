@@ -46,11 +46,11 @@
            倒数日没有「科目」概念，手势也不该把用户丢进一个旧页面，两项一并下掉。 -->
       <div class="item" style="background-color: {{ theme.card }}" onclick="goDiag">
         <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.diag') }}</text>
-        <text class="it-v">{{ $t('message.settings.open') }}</text>
+        <text class="it-v" style="color: {{ theme.textSecondary }}">{{ $t('message.settings.open') }}</text>
       </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="quitApp">
         <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.exit') }}</text>
-        <text class="it-v">{{ $t('message.settings.close') }}</text>
+        <text class="it-v" style="color: {{ theme.textSecondary }}">{{ $t('message.settings.close') }}</text>
       </div>
 
       <!-- 清空数据放最后一项（2026-11-02 用户要求）：
