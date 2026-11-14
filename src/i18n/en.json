@@ -1,0 +1,29 @@
+{
+  "message": {
+    "settings": {
+      "title": "Set",
+      "theme": "Theme",
+      "nickname": "Name",
+      "unset": "None",
+      "diag": "Diag",
+      "open": "On",
+      "exit": "Exit",
+      "close": "Off",
+      "clear": "Clear",
+      "clearConfirm": "Confirm"
+    },
+    "theme": {
+      "classic": "Dark",
+      "blue": "Blue",
+      "green": "Green",
+      "red": "Coral",
+      "dark": "Night",
+      "gray": "Gray",
+      "purple": "Violet",
+      "light": "White",
+      "warm": "Sand",
+      "forest": "Moss",
+      "amber": "Amber"
+    }
+  }
+}

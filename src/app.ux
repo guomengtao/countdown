@@ -4,8 +4,19 @@ const probe = require('./common/probe.js')
 export default {
   onCreate() {
     probe.load()
+    // 多语言试点：把框架当前 locale 记进探针，装机后可直接判读系统语言匹配是否生效。
+    // configuration 官方标 1060+，本工程 minPlatformVersion 1050；取不到时静默记 unsupported，
+    // 不影响启动，也不改任何页面行为。详见 docs/多语言设置页试点与日语扩展-20261114.md
+    let locale = 'unsupported'
+    try {
+      const configuration = require('@system.configuration')
+      const loc = configuration.getLocale()
+      if (loc && loc.language) {
+        locale = [loc.language, loc.countryOrRegion].filter(function (x) { return !!x }).join('-')
+      }
+    } catch (e) {}
     // 只要这行能落盘，就说明包能起来 —— 用户重启后首页能读到
-    probe.mark('app', 'shown')
+    probe.mark('app', 'shown', locale)
   }
 }
 </script>

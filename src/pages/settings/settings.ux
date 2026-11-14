@@ -2,44 +2,48 @@
      入口：首页「上滑」「长按」。
      定位：手势总入口 / 功能索引页，将来新功能都往这里挂。
      页头与 pill、nickname 两页同构（160×48 居中胶囊），不要各写一套。
-     字号只走 ev-six 四档：44 / 30 / 28 / 24 -->
+     字号只走 ev-six 四档：44 / 30 / 28 / 24
+     2026-11-14 多语言试点：静态文案走 $t，词表见 src/i18n/，长度规则见总纲 §3.21 第 9 条。
+     ⚠️ 布局与字号一律不动——译文必须塞进原文那一行（行级不回归判据）。 -->
 <template>
   <div class="page" style="background-color: {{ theme.bg }}">
     <div class="top">
       <div class="hd" onclick="goBack" style="background-color: {{ theme.cardLight }}">
         <image class="hd-ic" src="/common/icons/chevron-left-light.png"></image>
-        <text class="hd-t" style="color: {{ theme.text }}">设置</text>
+        <text class="hd-t" style="color: {{ theme.text }}">{{ $t('message.settings.title') }}</text>
       </div>
     </div>
 
     <div class="list">
       <div class="item" style="background-color: {{ theme.card }}" onclick="goTheme">
-        <text class="it-k" style="color: {{ theme.text }}">主题</text>
+        <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.theme') }}</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}">{{ themeName }}</text>
       </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="goNick">
-        <text class="it-k" style="color: {{ theme.text }}">昵称</text>
+        <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.nickname') }}</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ nick }}">{{ nick }}</text>
-        <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ !nick }}">未设置</text>
+        <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ !nick }}">{{ $t('message.settings.unset') }}</text>
       </div>
       <!-- 2026-11-02 发布前清理：删掉「科目」与「手势」两项。
            它们是从课程表项目带过来的遗留入口——「科目」跳 pages/pill（键盘宿主测试页）、
            「手势」跳 pages/index（701 行旧首页，根节点自绘 touch，正是会闪退的写法）。
            倒数日没有「科目」概念，手势也不该把用户丢进一个旧页面，两项一并下掉。 -->
       <div class="item" style="background-color: {{ theme.card }}" onclick="goDiag">
-        <text class="it-k" style="color: {{ theme.text }}">诊断</text>
-        <text class="it-v">打开</text>
+        <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.diag') }}</text>
+        <text class="it-v">{{ $t('message.settings.open') }}</text>
       </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="quitApp">
-        <text class="it-k" style="color: {{ theme.text }}">退出</text>
-        <text class="it-v">关闭</text>
+        <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.exit') }}</text>
+        <text class="it-v">{{ $t('message.settings.close') }}</text>
       </div>
 
       <!-- 清空数据放最后一项（2026-11-02 用户要求）：
            危险操作脱离了视线最高处（原来排第 2，紧跟主题之后），
-           也符合「越靠下越不可逆」的列表惯例。仍带 3 秒二次确认。 -->
+           也符合「越靠下越不可逆」的列表惯例。仍带 3 秒二次确认。
+           2026-11-14：原来的三元 + 中文硬编码改成两个 if + $t，避免模板里同时出现表达式与翻译调用。 -->
       <div class="item" style="background-color: {{ theme.card }}" onclick="clearAll">
-        <text class="it-k" style="color: {{ clearConfirm ? theme.deleteText : theme.text }}">{{ clearConfirm ? '确认清空' : '清空数据' }}</text>
+        <text class="it-k" if="{{ clearConfirm }}" style="color: {{ theme.deleteText }}">{{ $t('message.settings.clearConfirm') }}</text>
+        <text class="it-k" if="{{ !clearConfirm }}" style="color: {{ theme.text }}">{{ $t('message.settings.clear') }}</text>
       </div>
     </div>
 
@@ -121,9 +125,16 @@ export default {
 
   loadTheme() {
     const self = this
-    theme.getTheme(function (t, name) {
+    // theme.getTheme 回调第二参数本来就是主题 key（如 classic），无需改数据层。
+    // 主题名走 $t('message.theme.<key>')；低版本不支持 $t 时兜底回中文 t.name，保证中文零回归。
+    theme.getTheme(function (t, key) {
       self.theme = t
-      self.themeName = t.name || name
+      let translated = ''
+      try {
+        translated = self.$t('message.theme.' + (key || 'classic'))
+      } catch (e) {}
+      if (translated && translated.indexOf('message.theme.') === 0) translated = ''
+      self.themeName = translated || t.name
     })
   },
 
