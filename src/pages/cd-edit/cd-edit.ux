@@ -14,7 +14,7 @@
       <text class="field-label" style="color: {{ theme.textSecondary }}">名称</text>
       <div class="name-row" onclick="openInputPage" style="background-color: {{ theme.card }}">
         <text class="name-value" if="{{ title.length }}" style="color: {{ theme.text }}">{{ title }}</text>
-        <text class="name-placeholder" if="{{ !title.length }}" style="color: {{ theme.textMuted }}">点此输入名称</text>
+        <text class="name-placeholder" if="{{ !title.length }}" style="color: {{ theme.textMuted }}">输入名称</text>
       </div>
       <text class="err-text" if="{{ errMsg.length }}" style="color: {{ theme.deleteText }}">{{ errMsg }}</text>
     </div>
@@ -27,7 +27,6 @@
         <text class="field-label" style="color: {{ theme.textSecondary }}">模式</text>
         <div class="cal-toggle" onclick="toggleMode" style="background-color: {{ theme.border }}">
           <text class="cal-toggle-text" style="color: {{ theme.accent }}">{{ modeText }}</text>
-          <text class="cal-toggle-arrow" style="color: {{ theme.textMuted }}">⇄</text>
         </div>
       </div>
     </div>
@@ -42,7 +41,6 @@
         <text class="field-label" style="color: {{ theme.textSecondary }}">日期</text>
         <div class="cal-toggle" onclick="toggleCalendar" style="background-color: {{ theme.border }}">
           <text class="cal-toggle-text" style="color: {{ theme.accent }}">{{ calendarText }}</text>
-          <text class="cal-toggle-arrow" style="color: {{ theme.textMuted }}">⇄</text>
         </div>
       </div>
       <div class="picker-head">
@@ -743,8 +741,8 @@ export default {
 }
 
 .field-label {
-  font-size: 20px;
-  line-height: 26px;
+  font-size: 24px;
+  line-height: 32px;
   margin-bottom: 2px;
 }
 
@@ -767,21 +765,21 @@ export default {
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  width: 76px;
+  width: 96px;
   height: 44px;
   border-radius: 22px;
   flex-shrink: 0;
 }
 
 .cal-toggle-text {
-  font-size: 20px;
-  line-height: 24px;
+  font-size: 24px;
+  line-height: 30px;
   text-align: center;
 }
 
 .cal-toggle-arrow {
-  font-size: 18px;
-  line-height: 24px;
+  font-size: 24px;
+  line-height: 30px;
   margin-left: 3px;
 }
 
@@ -798,16 +796,16 @@ export default {
 
 .name-value {
   flex: 1;
-  font-size: 22px;
-  line-height: 28px;
+  font-size: 24px;
+  line-height: 32px;
   lines: 1;
   text-overflow: ellipsis;
 }
 
 .name-placeholder {
   flex: 1;
-  font-size: 20px;
-  line-height: 28px;
+  font-size: 24px;
+  line-height: 32px;
   lines: 1;
   text-overflow: ellipsis;
 }
@@ -821,8 +819,8 @@ export default {
 }
 
 .err-text {
-  font-size: 20px;
-  line-height: 26px;
+  font-size: 24px;
+  line-height: 32px;
   margin-top: 2px;
 }
 
@@ -832,16 +830,16 @@ export default {
   flex-direction: row;
   justify-content: space-around;
   width: 100%;
-  height: 26px;
+  height: 30px;
   flex-shrink: 0;
 }
 
 /* 单位字（年/月/日）曾经 13px——模拟器上勉强，真机上等于没有。
    18px 是「装饰性提示」档，与列里非选中行同号，视觉成组。 */
 .picker-unit {
-  width: 52px;
-  font-size: 18px;
-  line-height: 26px;
+  width: 56px;
+  font-size: 24px;
+  line-height: 32px;
   text-align: center;
 }
 
@@ -858,10 +856,10 @@ export default {
    非选中行必须大幅弱化 —— 三列各三行候选全是白字时视觉上像 3×3 九宫格
    「三行日期」，很乱；压到接近背景的暗灰后焦点只落在中间一行（2026-10-21） */
 .date-picker {
-  width: 52px;
-  font-size: 18px;
+  width: 56px;
+  font-size: 24px;
   color: #3d3d5c;
-  selected-font-size: 22px;
+  selected-font-size: 24px;
   selected-color: #7ec8e3;
   selected-background-color: #123a63;
 }
@@ -870,16 +868,16 @@ export default {
    合并成一行在 20px 下放不下（10 个半角 + 6 个汉字 ≈ 183px > 168px），
    曾经用 lines:1 省略，结果「已过453天」被吃成「已过4…」—— 宁可多一行也不截断 */
 .date-preview {
-  font-size: 20px;
-  line-height: 26px;
+  font-size: 24px;
+  line-height: 32px;
   margin-top: 0;
   text-align: center;
   width: 100%;
 }
 
 .date-days {
-  font-size: 22px;
-  line-height: 31px;
+  font-size: 24px;
+  line-height: 34px;
   text-align: center;
   width: 100%;
   font-weight: bold;
@@ -917,7 +915,7 @@ export default {
 
 /* 选中的颜色名放右端，既是反馈也是色盲用户的唯一可靠标识 */
 .color-name {
-  font-size: 18px;
+  font-size: 24px;
   line-height: 22px;
   flex-shrink: 0;
 }
@@ -939,8 +937,8 @@ export default {
 /* 横向标签不折行：「首页显示」4 字 ×20 = 80px，开关 60，留 28 余量。
    ⚠️ 不能写成 `.switch-row .field-label` —— Vela 编译会静默丢弃后代选择器 */
 .switch-text {
-  font-size: 20px;
-  line-height: 26px;
+  font-size: 24px;
+  line-height: 32px;
   flex-shrink: 0;
 }
 
@@ -954,7 +952,7 @@ export default {
 }
 
 .switch-label {
-  font-size: 18px;
+  font-size: 24px;
   line-height: 22px;
   text-align: center;
 }
@@ -994,8 +992,8 @@ export default {
 }
 
 .save-label {
-  font-size: 20px;
-  line-height: 26px;
+  font-size: 24px;
+  line-height: 32px;
   text-align: center;
 }
 
