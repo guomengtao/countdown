@@ -1,29 +1,29 @@
 <template>
   <scroll class="page" scroll-y="{{ true }}">
-    <text class="h1">诊断信息</text>
-    <text class="hint">截图发给开发者</text>
+    <text class="h1">{{ t.diag.title }}</text>
+    <text class="hint">{{ t.diag.hint }}</text>
 
-    <text class="k">版本</text>
+    <text class="k">{{ t.diag.ver }}</text>
     <text class="v">{{ verName }} {{ verCode }}</text>
 
-    <text class="k">机型</text>
+    <text class="k">{{ t.diag.model }}</text>
     <text class="v">{{ model }}</text>
 
-    <text class="k">屏幕</text>
+    <text class="k">{{ t.diag.screen }}</text>
     <text class="v">{{ screen }}</text>
 
-    <text class="k">系统</text>
+    <text class="k">{{ t.diag.os }}</text>
     <text class="v">{{ osVer }}</text>
 
-    <text class="k">词库</text>
+    <text class="k">{{ t.diag.dict }}</text>
     <text class="v">{{ dict }}</text>
 
-    <text class="k">语言</text>
+    <text class="k">{{ t.diag.lang }}</text>
     <!-- 显示 setLocale 前后 getLocale 的对比（形如 zh-CN>en）。
          静默 no-op 不抛异常，只有这个对比能区分「API 无效」和「资源匹配错」。 -->
     <text class="v">{{ loc }}</text>
 
-    <text class="k">测试结果</text>
+    <text class="k">{{ t.diag.result }}</text>
     <!-- 原来写成「exp-A → 键盘可用 · 已敲过」，三个问题：
          1. → 和 · 都是 ev-six 明令禁止的符号，各白吃 0.6~1.1 个字位
          2. 一行 168px 装不下，必然溢出
@@ -35,10 +35,10 @@
     </div>
 
     <div class="btn" onclick="refresh">
-      <text class="btn-t">刷新</text>
+      <text class="btn-t">{{ t.diag.refresh }}</text>
     </div>
     <div class="btn" onclick="clearLog">
-      <text class="btn-t">清空</text>
+      <text class="btn-t">{{ t.diag.clear }}</text>
     </div>
     <div class="spacer"></div>
   </scroll>
@@ -128,7 +128,9 @@
 import device from '@system.device'
 import file from '@system.file'
 import app from '@system.app'
+import storage from '@system.storage'
 const probe = require('../../common/probe.js')
+const I18N = require('../../common/i18n.js')
 
 const VER_NAME = '0.0.1'
 const VER_CODE = 1
@@ -141,12 +143,15 @@ export default {
     model: '-',
     screen: '-',
     osVer: '-',
-    dict: '未探测',
+    dict: '-',
+    // 自建词表：模板只取 t.diag.xxx 字面量属性
+    t: I18N.getT('zh'),
     loc: '-',
     rows: []
   },
 
   onInit() {
+    const self = this
     // 版本必须从包信息读，不能写死：上一版硬编码 0.0.1，实际装的是 0.0.2，
     // 用户截图里的版本和真实包对不上，等于让证据自相矛盾
     try {
@@ -156,6 +161,17 @@ export default {
         if (info.versionCode !== undefined) this.verCode = info.versionCode
       }
     } catch (e) {}
+    // 语言：与其它页共用 cd_locale。诊断页只翻标签，值保持原始数据（版本/型号/字节数）
+    storage.get({
+      key: 'cd_locale',
+      success: function (v) {
+        self.t = I18N.forPref(v || 'auto')
+        self.dict = self.t.diag.unknown
+      },
+      fail: function () {
+        self.t = I18N.forPref('auto')
+      }
+    })
   },
 
   onReady() {

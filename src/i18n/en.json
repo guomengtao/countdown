@@ -30,6 +30,20 @@
       "title": "Name",
       "ph": "Name",
       "save": "Save"
+    },
+    "diag": {
+      "title": "Diag",
+      "hint": "Send to dev",
+      "ver": "Ver",
+      "model": "Model",
+      "screen": "Screen",
+      "os": "OS",
+      "dict": "Dict",
+      "lang": "Lang",
+      "result": "Result",
+      "refresh": "Refresh",
+      "clear": "Clear",
+      "unknown": "Unknown"
     }
   }
 }

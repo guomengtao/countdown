@@ -40,6 +40,20 @@ const DICT = {
       title: '设置昵称',
       ph: '输入昵称',
       save: '保存'
+    },
+    diag: {
+      title: '诊断信息',
+      hint: '截图发给开发者',
+      ver: '版本',
+      model: '机型',
+      screen: '屏幕',
+      os: '系统',
+      dict: '词库',
+      lang: '语言',
+      result: '测试结果',
+      refresh: '刷新',
+      clear: '清空',
+      unknown: '未探测'
     }
   },
   en: {
@@ -73,6 +87,20 @@ const DICT = {
       title: 'Name',
       ph: 'Name',
       save: 'Save'
+    },
+    diag: {
+      title: 'Diag',
+      hint: 'Send to dev',
+      ver: 'Ver',
+      model: 'Model',
+      screen: 'Screen',
+      os: 'OS',
+      dict: 'Dict',
+      lang: 'Lang',
+      result: 'Result',
+      refresh: 'Refresh',
+      clear: 'Clear',
+      unknown: 'Unknown'
     }
   },
   ja: {
@@ -106,10 +134,23 @@ const DICT = {
       title: '名前',
       ph: '名前',
       save: '保存'
+    },
+    diag: {
+      title: '診断情報',
+      hint: '開発者に送信',
+      ver: '版',
+      model: '機種',
+      screen: '画面',
+      os: 'OS',
+      dict: '辞書',
+      lang: '言語',
+      result: '結果',
+      refresh: '更新',
+      clear: '消去',
+      unknown: '未検出'
     }
   }
 }
-
 // 只按字面量取属性；模板侧绝不拼 key（动态 key 会崩，pit-20261115-190）
 // 入参兼容完整 locale（ja-JP / zh-CN / en-US），只取主语言段
 function getT(lang) {

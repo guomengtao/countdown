@@ -10,7 +10,7 @@
     <div class="top">
       <div class="hd" onclick="goBack" style="background-color: {{ theme.cardLight }}">
         <image class="hd-ic" src="/common/icons/chevron-left-light.png"></image>
-        <text class="hd-t" style="color: {{ theme.text }}">主题</text>
+        <text class="hd-t" style="color: {{ theme.text }}">{{ t.settings.theme }}</text>
       </div>
     </div>
 
@@ -36,22 +36,53 @@
 
 <script>
 import router from '@system.router'
+import storage from '@system.storage'
 import theme from '../../data/theme.js'
+const I18N = require('../../common/i18n.js')
 
 export default {
   data: {
     themes: [],
     cur: 'classic',
-    theme: {}
+    theme: {},
+    // 自建词表：模板只取字面量属性
+    t: I18N.getT('zh')
   },
 
   onInit() {
     const self = this
-    this.themes = theme.listThemes()
     theme.getTheme(function (t, name) {
       self.theme = t
       self.cur = name
     })
+    // 与其它页共用 cd_locale；先按默认中文渲染一版，回调到了再整体换名
+    this.applyLang('auto')
+    storage.get({
+      key: 'cd_locale',
+      success: function (v) {
+        self.applyLang(v || 'auto')
+      },
+      fail: function () {}
+    })
+  },
+
+  // 主题名必须整表重算：它是数据层给的 item.name，不是模板里的静态文案。
+  // 只换 t 不会让列表变，必须重建 themes（浅拷贝，别改 theme.js 里的模块数据）。
+  applyLang(pref) {
+    this.t = I18N.forPref(pref)
+    const dict = this.t.theme || {}
+    const raw = theme.listThemes()
+    const out = []
+    for (let i = 0; i < raw.length; i++) {
+      const src = raw[i]
+      const copy = {}
+      for (const k in src) copy[k] = src[k]
+      // 脚本作用域里按 key 取字典是安全的；模板里拼 key 才会崩（pit-20261115-190）
+      const tr = dict[copy.key]
+      if (tr) copy.name = tr
+      out.push(copy)
+    }
+    this.themes = out
   },
 
   pick(item) {

@@ -84,7 +84,26 @@ const ROWS = [
   // 昵称页（2026-11-15 迁入）：三处都是居中单行、右侧无对齐对象，与页头同口径给 +1.0P
   ['昵称页头', ['message.nickname.title'], 1.0],
   ['昵称占位', ['message.nickname.ph'], 1.0],
-  ['保存按钮', ['message.nickname.save'], 1.0]
+  ['保存按钮', ['message.nickname.save'], 1.0],
+  // ---- 主题页（2026-11-15 迁入）----
+  // 页头复用 message.settings.theme（同一个词，语义一致）；列表项名走 message.theme.*，
+  // 已在设置页主题行按最宽值（暗紫魅影）校验，这里不重复。
+  ['主题页头', ['message.settings.theme'], 1.0],
+
+  // ---- 诊断页（2026-11-15 迁入）----
+  // 该页布局与设置页不同：标签(.k) 24px 独占一行、值在下一行，可用宽是整行 168px 而非双列 142px，
+  // 所以给 1.5P 宽裕。按钮(.btn) 176px 定宽居中，给 2.0P。
+  ['诊断页头', ['message.diag.title'], 1.0],
+  ['诊断提示', ['message.diag.hint'], 1.0],
+  ['诊断标签.版本', ['message.diag.ver'], 1.5],
+  ['诊断标签.机型', ['message.diag.model'], 1.5],
+  ['诊断标签.屏幕', ['message.diag.screen'], 1.5],
+  ['诊断标签.系统', ['message.diag.os'], 1.5],
+  ['诊断标签.词库', ['message.diag.dict'], 1.5],
+  ['诊断标签.语言', ['message.diag.lang'], 1.5],
+  ['诊断标签.测试结果', ['message.diag.result'], 1.5],
+  ['诊断按钮.刷新', ['message.diag.refresh'], 2.0],
+  ['诊断按钮.清空', ['message.diag.clear'], 2.0]
 ]
 
 if (!fs.existsSync(path.join(I18N_DIR, 'defaults.json'))) {
