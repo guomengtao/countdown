@@ -22,12 +22,17 @@
     </div>
 
     <div class="list">
-      <!-- 主题：单值行。去掉左侧「主题」标签是为了腾出 2P——双列时每列只剩 2.2P，
-           连 3 字中文主题名都放不下。点击仍进主题页，语义由「当前值可点」承担。 -->
-      <div class="item" style="background-color: {{ theme.card }}" onclick="goTheme">
+      <!-- 主题：双行紧凑卡（2026-11-15 第二次调整）。
+           第一版去掉「主题」标签腾宽度 —— 用户反馈「这行只有值没有标题，看不出是干什么的」。
+           补回标签为什么不能走双列：.item 内容宽仅 142px，24px 下容量约 5.9 汉字，
+           「主题」2 + 「暗紫魅影」4 = 144px 已超，日语「テーマ」3 + 4 字 = 168px 更超。
+           ev-six 不许缩字号/截断，所以只改架构：标签与值上下两行，宽度需求从 168px 降到 96px，
+           所有语言都有 40% 余量；行高 56px 略高于其它行的 48px，正好强调「这是当前外观」。 -->
+      <div class="item item-stack" style="background-color: {{ theme.card }}" onclick="goTheme">
+        <text class="it-lab" style="color: {{ theme.textSecondary }}">{{ t.settings.theme }}</text>
         <!-- 2026-11-15：11 条 $t 字面量分支合并成一条。主题名由 loadTheme 在脚本里查字典后
              作为 themeName 字符串下发，模板侧不再拼 key（动态 key 会崩，pit-20261115-190）。 -->
-        <text class="it-k" style="color: {{ theme.text }}">{{ themeName }}</text>
+        <text class="it-val" style="color: {{ theme.text }}">{{ themeName }}</text>
       </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="goNick">
         <text class="it-k" style="color: {{ theme.text }}">{{ t.settings.nickname }}</text>
@@ -65,7 +70,11 @@
       </div>
     </div>
 
-    <text class="ver" style="color: {{ theme.textMuted }}">v{{ ver }}</text>
+    <!-- 版本号：用户反馈「太模糊」。字号受 ev-six 四档约束不能动（24px 已是最小档），
+         所以只提两件事：① 颜色从 textMuted 提到 textSecondary（对比度上一档）；
+         ② 补构建号，方便判断「是否已更新到对方说的那一版」。
+         标点只用半角括号——ev-six 禁止 → 与 ·（各白吃 0.6~1.1 字位）。 -->
+    <text class="ver" style="color: {{ theme.textSecondary }}">v{{ ver }} ({{ verCode }})</text>
   </div>
 </template>
 
@@ -96,6 +105,7 @@ const LOCALES = ['auto', 'zh-CN', 'en', 'ja-JP']
 export default {
   data: {
     ver: '0.0.1',
+    verCode: '',
     nick: '',
     themeKey: 'classic',
     clearConfirm: false,
@@ -112,6 +122,8 @@ export default {
     try {
       const info = app.getInfo()
       if (info && info.versionName) this.ver = info.versionName
+      // 构建号：同一 versionName 可能对应多次打包，用户报问题时靠它定位具体包
+      if (info && info.versionCode !== undefined) this.verCode = info.versionCode
     } catch (e) {}
     this.loadTheme()
     this.loadAll()
@@ -344,6 +356,26 @@ export default {
 .it-k {
   font-size: 24px;
   line-height: 30px;
+  lines: 1;
+}
+/* 主题行专用：标签在上、值在下，左对齐（不参与 space-between）。
+   行高 26 + 26 = 52，加上下各 2px 内边距 = 56px 总高。 */
+.item-stack {
+  height: 56px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+.it-lab {
+  font-size: 24px;
+  line-height: 26px;
+  lines: 1;
+}
+.it-val {
+  font-size: 24px;
+  line-height: 26px;
   lines: 1;
 }
 .it-v {

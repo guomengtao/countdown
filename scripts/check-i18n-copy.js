@@ -75,7 +75,9 @@ function load(name) {
  * 列表行一律 0 宽裕——它们是左右双列、靠 justify-content: space-between 对齐，多 1P 就会挤到相邻列。 */
 const ROWS = [
   ['页头', ['message.settings.title'], 1.0],
-  ['主题行', ['message.theme.purple']],
+  ['主题行', ['message.theme.purple']],,
+  ['主题行标签', ['message.settings.theme'], 2.0],
+  ['主题行标签', ['message.settings.theme'], 2.0]
   ['昵称行(未设置)', ['message.settings.nickname', 'message.settings.unset']],
   ['诊断行', ['message.settings.diag', 'message.settings.open']],
   ['退出行', ['message.settings.exit', 'message.settings.close']],
