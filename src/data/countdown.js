@@ -6,8 +6,26 @@
 
 var storage = require("@system.storage")
 
+// v3（2026-11-15）：与 EvBox 倒数日并轨 —— 新增 repeat / pinnedHome 两个字段，
+// 存档结构与 EvBox 完全一致，三处（Ev倒数日 / EvBox / Ev课程表）共用同一份模型。
+// v2 与更早的裸数组键一律保留不删：回滚安全，旧版本误读也不会看到空列表。
+var KEY = "countdownDays.v3"
 var V2_KEY = "countdownDays.v2"
 var OLD_KEY = "countdownDays"
+
+// 重复：只改「算哪一天」，不改落盘的 date（date 永远是首次登记的公历日）
+var REPEAT_NONE = "none"
+var REPEAT_WEEKLY = "weekly"
+var REPEAT_MONTHLY = "monthly"
+var REPEAT_YEARLY = "yearly"
+
+var REPEAT_ORDER = [REPEAT_NONE, REPEAT_WEEKLY, REPEAT_MONTHLY, REPEAT_YEARLY]
+var REPEAT_LABELS = {
+  none: "不重复",
+  weekly: "每周",
+  monthly: "每月",
+  yearly: "每年"
+}
 
 var seq = 0
 
@@ -178,7 +196,7 @@ function demoItems() {
 }
 
 function emptyObject() {
-  return { version: 2, items: [] }
+  return { version: 3, items: [] }
 }
 
 // 归一化单条：保证 id/title/date/enabled 字段齐全且类型安全
@@ -192,6 +210,11 @@ function normalizeItem(it) {
   //                          up   = 正计时（起点在过去，显示「已经 N 天」）
   // 老数据没有这个字段 → 一律 down，语义与升级前完全一致，不需要迁移。
   o.mode = (it && it.mode === "up") ? "up" : "down"
+  // 重复（2026-11-15 与 EvBox 并轨）：只影响「下一次算哪一天」，不改落盘 date。
+  // 老数据没有这个字段 → none，语义与升级前完全一致。
+  o.repeat = (it && REPEAT_LABELS[it.repeat]) ? it.repeat : REPEAT_NONE
+  // 钉到首页大数字（EvBox 独有语义，此处仅保留字段；互斥由 setPinned 保证）
+  o.pinnedHome = (it && it.pinnedHome === true)
   // 进度口径：createdAt 存在则保留，否则按「目标日 − 90 天」回填（兼容 v1 迁移/旧数据）
   o.createdAt = (it && it.createdAt && isFinite(Number(it.createdAt))) ? Number(it.createdAt) : backfillCreatedAt(o.date)
   // 输入时用的日历：只影响卡片上要不要多显示一行农历，落盘 date 永远是公历
@@ -223,7 +246,10 @@ function statusOf(it) {
 }
 
 // 进度 0..1：从 createdAt 走到目标日的完成比例（done 自然趋近 1）
+// 重复条目（每周/每月/每年）返回 -1 = 不画进度条：base date 可能是几年前的一天，
+// 拿它当终点会算出恒 100% 的假进度，而每轮起点本身没有语义（生日没有「从哪天开始等」）。
 function progressOf(it) {
+  if (it && it.repeat && it.repeat !== REPEAT_NONE) return -1
   var target = parseDate(it.date)
   if (!target) return 0
   target.setHours(0, 0, 0, 0)
@@ -323,13 +349,13 @@ function load(cb) {
     var seed = emptyObject()
     seed.items = items
     storage.set({
-      key: V2_KEY,
+      key: KEY,
       value: JSON.stringify(seed),
       success: function() {
-        cb({ version: 2, items: items, source: "demo" })
+        cb({ version: 3, items: items, source: "demo" })
       },
       fail: function() {
-        cb({ version: 2, items: items, source: "demo" })
+        cb({ version: 3, items: items, source: "demo" })
       }
     })
   }
@@ -361,21 +387,21 @@ function load(cb) {
         var obj = emptyObject()
         obj.items = items
         storage.set({
-          key: V2_KEY,
+          key: KEY,
           value: JSON.stringify(obj),
           success: function() {
             storage.delete({
               key: OLD_KEY,
               success: function() {
-                cb({ version: 2, items: items, source: "v1migrated" })
+                cb({ version: 3, items: items, source: "v1migrated" })
               },
               fail: function() {
-                cb({ version: 2, items: items, source: "v1migrated" })
+                cb({ version: 3, items: items, source: "v1migrated" })
               }
             })
           },
           fail: function() {
-            cb({ version: 2, items: items, source: "v1migrated" })
+            cb({ version: 3, items: items, source: "v1migrated" })
           }
         })
       },
@@ -384,33 +410,68 @@ function load(cb) {
       }
     })
   }
+  // 读 v2 并升级到 v3：旧键保留不删（回滚安全），写 v3 后再回调
+  function migrateV2() {
+    storage.get({
+      key: V2_KEY,
+      success: function(data) {
+        if (data) {
+          var items = []
+          try {
+            var obj2 = JSON.parse(data)
+            items = Array.isArray(obj2.items) ? obj2.items.map(normalizeItem) : []
+          } catch (e3) {
+            items = []
+          }
+          var up = emptyObject()
+          up.items = items
+          storage.set({
+            key: KEY,
+            value: JSON.stringify(up),
+            success: function() {
+              cb({ version: 3, items: items, source: "v2migrated" })
+            },
+            fail: function() {
+              cb({ version: 3, items: items, source: "v2migrated" })
+            }
+          })
+          return
+        }
+        migrateOld()
+      },
+      fail: function() {
+        migrateOld()
+      }
+    })
+  }
+
   storage.get({
-    key: V2_KEY,
+    key: KEY,
     success: function(data) {
       if (data) {
         try {
           var obj = JSON.parse(data)
           var items = Array.isArray(obj.items) ? obj.items.map(normalizeItem) : []
-          cb({ version: 2, items: items, source: "v2" })
+          cb({ version: 3, items: items, source: "v3" })
           return
         } catch (e) {
           dlog(e)
         }
       }
-      migrateOld()
+      migrateV2()
     },
     fail: function() {
-      migrateOld()
+      migrateV2()
     }
   })
 }
 
-// 写入（落 v2 键；done 里统一回调，成功/失败都放行以免卡界面）
+// 写入（落 v3 键；done 里统一回调，成功/失败都放行以免卡界面）
 function save(items, cb) {
   var obj = emptyObject()
   obj.items = items
   storage.set({
-    key: V2_KEY,
+    key: KEY,
     value: JSON.stringify(obj),
     success: function() {
       if (cb) cb()
