@@ -68,8 +68,13 @@ function load(name) {
 
 // 设置页 192×490：.list 宽 168，.item 左右 padding 14/12 ⇒ 内容宽 142px。
 // 多数条目是双列同行（key + value），必须左右合计比，不能单看一个词。
+/* 第三个元素 = 该行允许的额外宽裕（P）。
+ *
+ * 只有「页头」给了 1.0P：它是居中单行、右侧无对齐对象，实测可用宽 134px（160 胶囊 − 22 图标 − 4 间距），
+ * 中文「设置」2.00P 远没用满；英文 Setup 2.75P 仍然完整显示（2026-11-14 真机/模拟器实测）。
+ * 列表行一律 0 宽裕——它们是左右双列、靠 justify-content: space-between 对齐，多 1P 就会挤到相邻列。 */
 const ROWS = [
-  ['页头', ['message.settings.title']],
+  ['页头', ['message.settings.title'], 1.0],
   ['主题行', ['message.settings.theme', 'message.theme.classic']],
   ['昵称行(未设置)', ['message.settings.nickname', 'message.settings.unset']],
   ['诊断行', ['message.settings.diag', 'message.settings.open']],
@@ -141,9 +146,10 @@ targets.forEach(function (arg) {
     })
     zh = Math.round(zh * 100) / 100
     tr = Math.round(tr * 100) / 100
-    const ok = tr <= zh
+    const slack = r[2] || 0
+    const ok = tr <= zh + slack
     if (!ok) { failed = true; rowFail++ }
-    console.log('  ' + (ok ? 'OK  ' : 'FAIL') + ' ' + r[0] + '：中文 ' + zh.toFixed(2) + 'P → ' + locale + ' ' + tr.toFixed(2) + 'P')
+    console.log('  ' + (ok ? 'OK  ' : 'FAIL') + ' ' + r[0] + '：中文 ' + zh.toFixed(2) + 'P → ' + locale + ' ' + tr.toFixed(2) + 'P' + (slack ? '（行宽裕 +' + slack.toFixed(2) + 'P）' : ''))
   })
 
   // 单条超宽只作提示，不判失败：§3.21 第 9.4 条允许双列同行左右互借额度，
