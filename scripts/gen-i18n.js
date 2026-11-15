@@ -58,7 +58,10 @@ function main() {
 
   const src = fs.readFileSync(TARGET, 'utf8')
   const START = 'const DICT = '
-  const END = '\n\n// 只按字面量取属性'
+  // 结束标记不带前导换行：上一版写成 '\n\n// ...' 并在拼接时 replace(/^\n+/, '')，
+  // 结果第一次生成后文件里只剩一个 \n，第二次运行就找不到标记了（不可幂等）。
+  // 现在标记只认注释本身，输出时统一补 '\n\n'，任意次运行结果一致。
+  const END = '// 只按字面量取属性'
   const i = src.indexOf(START)
   const j = src.indexOf(END)
   if (i < 0 || j < 0) {
@@ -66,8 +69,8 @@ function main() {
   }
 
   const next = src.slice(0, i + START.length) +
-    toJsLiteral(dict) + '\n' +
-    src.slice(j).replace(/^\n+/, '')
+    toJsLiteral(dict) + '\n\n' +
+    src.slice(j)
 
   fs.writeFileSync(TARGET, next)
 

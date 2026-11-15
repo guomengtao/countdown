@@ -75,9 +75,8 @@ function load(name) {
  * 列表行一律 0 宽裕——它们是左右双列、靠 justify-content: space-between 对齐，多 1P 就会挤到相邻列。 */
 const ROWS = [
   ['页头', ['message.settings.title'], 1.0],
-  ['主题行', ['message.theme.purple']],,
+  ['主题行', ['message.theme.purple']],
   ['主题行标签', ['message.settings.theme'], 2.0],
-  ['主题行标签', ['message.settings.theme'], 2.0]
   ['昵称行(未设置)', ['message.settings.nickname', 'message.settings.unset']],
   ['诊断行', ['message.settings.diag', 'message.settings.open']],
   ['退出行', ['message.settings.exit', 'message.settings.close']],
@@ -105,7 +104,20 @@ const ROWS = [
   ['诊断标签.语言', ['message.diag.lang'], 1.5],
   ['诊断标签.测试结果', ['message.diag.result'], 1.5],
   ['诊断按钮.刷新', ['message.diag.refresh'], 2.0],
-  ['诊断按钮.清空', ['message.diag.clear'], 2.0]
+  ['诊断按钮.清空', ['message.diag.clear'], 2.0],
+
+  // ---- 首页 cd-list（2026-11-15 迁入）----
+  // 页头胶囊可用宽约 134px@30px，给 1.0P；空态与 hero 单位都是居中独占整行，给 1.0P。
+  // 单位行按「数字在前、单位在后」的后缀结构校验，三者同为后缀，拼接顺序跨语言不变。
+  ['首页头', ['message.home.title'], 1.0],
+  ['首页空态主', ['message.home.emptyMain'], 1.0],
+  ['首页空态副', ['message.home.emptySub'], 1.0],
+  ['首页添加键', ['message.home.addBtn'], 1.0],
+  ['首页设置键', ['message.home.setup'], 1.0],
+  ['首页分组.已结束', ['message.home.ended'], 1.0],
+  ['首页今天', ['message.home.today'], 1.0],
+  ['首页单位.过去', ['message.home.unitAgo'], 1.0],
+  ['首页单位.hero未来', ['message.home.unitFuture'], 1.0]
 ]
 
 if (!fs.existsSync(path.join(I18N_DIR, 'defaults.json'))) {

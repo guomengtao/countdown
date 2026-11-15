@@ -44,6 +44,19 @@
       "refresh": "刷新",
       "clear": "清空",
       "unknown": "未探测"
+    },
+    "home": {
+      "title": "倒数日",
+      "ended": "已结束",
+      "today": "今天",
+      "todayBig": "就是今天",
+      "emptyMain": "还没有倒数日",
+      "emptySub": "点下方添加",
+      "addBtn": "＋添加",
+      "setup": "设置",
+      "unitDay": "天",
+      "unitAgo": "天前",
+      "unitFuture": "天后"
     }
   }
 }

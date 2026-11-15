@@ -44,6 +44,19 @@
       "refresh": "Refresh",
       "clear": "Clear",
       "unknown": "Unknown"
+    },
+    "home": {
+      "title": "Timer",
+      "ended": "Ended",
+      "today": "Today",
+      "todayBig": "Today",
+      "emptyMain": "No items",
+      "emptySub": "Add below",
+      "addBtn": "Add",
+      "setup": "Setup",
+      "unitDay": "days",
+      "unitAgo": "ago",
+      "unitFuture": "left"
     }
   }
 }

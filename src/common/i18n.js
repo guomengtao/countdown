@@ -54,6 +54,19 @@ const DICT = {
       refresh: '刷新',
       clear: '清空',
       unknown: '未探测'
+    },
+    home: {
+      title: '倒数日',
+      ended: '已结束',
+      today: '今天',
+      todayBig: '就是今天',
+      emptyMain: '还没有倒数日',
+      emptySub: '点下方添加',
+      addBtn: '＋添加',
+      setup: '设置',
+      unitDay: '天',
+      unitAgo: '天前',
+      unitFuture: '天后'
     }
   },
   en: {
@@ -101,6 +114,19 @@ const DICT = {
       refresh: 'Refresh',
       clear: 'Clear',
       unknown: 'Unknown'
+    },
+    home: {
+      title: 'Timer',
+      ended: 'Ended',
+      today: 'Today',
+      todayBig: 'Today',
+      emptyMain: 'No items',
+      emptySub: 'Add below',
+      addBtn: 'Add',
+      setup: 'Setup',
+      unitDay: 'days',
+      unitAgo: 'ago',
+      unitFuture: 'left'
     }
   },
   ja: {
@@ -148,9 +174,23 @@ const DICT = {
       refresh: '更新',
       clear: '消去',
       unknown: '未検出'
+    },
+    home: {
+      title: '残り日数',
+      ended: '終了',
+      today: '今日',
+      todayBig: '今日',
+      emptyMain: '項目なし',
+      emptySub: '下から追加',
+      addBtn: '追加',
+      setup: '設定',
+      unitDay: '日',
+      unitAgo: '日前',
+      unitFuture: '日後'
     }
   }
 }
+
 // 只按字面量取属性；模板侧绝不拼 key（动态 key 会崩，pit-20261115-190）
 // 入参兼容完整 locale（ja-JP / zh-CN / en-US），只取主语言段
 function getT(lang) {

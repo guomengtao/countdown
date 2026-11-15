@@ -13,7 +13,7 @@
     <!-- 顶栏：居中纯文字标题。故意不可点 —— 首页没有上一页，
          任何「看起来能返回」的元素出现在这里是误导（v0.2.1 之前是「菜单」胶囊）。 -->
     <div class="top">
-      <text class="hd-title" style="color: {{ theme.text }}">倒数日</text>
+      <text class="hd-title" style="color: {{ theme.text }}">{{ t.home.title }}</text>
     </div>
 
     <!-- 工具行：只有列表非空时出现。改成纯文字链接（原来是两枚 44px 胶囊），
@@ -31,7 +31,7 @@
       <div for="{{ (idx, item) in countdownList }}" class="cd-item">
         <div class="cd-group-divider" if="{{ item.showDivider }}">
           <div class="cd-group-line" style="background-color: {{ theme.border }}"></div>
-          <text class="cd-group-label" style="color: {{ theme.textMuted }}">已结束</text>
+          <text class="cd-group-label" style="color: {{ theme.textMuted }}">{{ t.home.ended }}</text>
         </div>
 
         <!-- 版式 A · 简单列表（layout=list，默认）：**两列**
@@ -58,7 +58,7 @@
                底色 tint 也会跟着打架。颜色归用户，方向归单位。 -->
           <text class="ls-title" style="color: {{ theme.text }}">{{ item.title }}</text>
           <div class="num-box">
-            <text if="{{ item.isToday }}" class="ls-today" style="color: {{ item.daysColor }}">今天</text>
+            <text if="{{ item.isToday }}" class="ls-today" style="color: {{ item.daysColor }}">{{ t.home.today }}</text>
             <text if="{{ !item.isToday }}" class="ls-num"
                   style="color: {{ item.daysColor }}; font-size: {{ item.numSize }}px">{{ item.numText }}</text>
             <text if="{{ !item.isToday }}" class="ls-unit" style="color: {{ item.daysColor }}">{{ item.unitText }}</text>
@@ -73,7 +73,7 @@
              style="{{ item.cardBg }}; opacity: {{ item.enabled ? 1 : 0.5 }}; {{ item.cardBorder }}"
              onclick="openForm(item.id)">
           <text class="hero-title" style="color: {{ theme.text }}">{{ item.title }}</text>
-          <text if="{{ item.isToday }}" class="hero-today" style="color: {{ item.daysColor }}">就是今天</text>
+          <text if="{{ item.isToday }}" class="hero-today" style="color: {{ item.daysColor }}">{{ t.home.todayBig }}</text>
           <text if="{{ !item.isToday }}" class="hero-num" style="color: {{ item.daysColor }}">{{ item.numText }}</text>
           <text if="{{ !item.isToday }}" class="hero-unit" style="color: {{ item.daysColor }}">{{ item.heroUnit }}</text>
           <text class="hero-date" style="color: {{ theme.textSecondary }}">{{ item.dateLine }}</text>
@@ -86,8 +86,8 @@
         </div>
       </div>
 
-      <text if="{{ countdownList.length === 0 }}" class="empty-text" style="color: {{ theme.textMuted }}">还没有倒数日</text>
-      <text if="{{ countdownList.length === 0 }}" class="empty-sub" style="color: {{ theme.textMuted }}">点下方按钮添加一个</text>
+      <text if="{{ countdownList.length === 0 }}" class="empty-text" style="color: {{ theme.textMuted }}">{{ t.home.emptyMain }}</text>
+      <text if="{{ countdownList.length === 0 }}" class="empty-sub" style="color: {{ theme.textMuted }}">{{ t.home.emptySub }}</text>
       <div class="list-pad" if="{{ countdownList.length > 0 }}"></div>
     </scroll>
 
@@ -97,10 +97,10 @@
          圆角裁切不到、也不会和列表滚动抢手势。 -->
     <div class="actions">
       <div class="act-add" onclick="startAdd" style="background-color: {{ theme.accent }}">
-        <text class="act-add-t" style="color: {{ theme.bg }}">＋添加</text>
+        <text class="act-add-t" style="color: {{ theme.bg }}">{{ t.home.addBtn }}</text>
       </div>
       <div class="act-set" onclick="goSettings" style="background-color: {{ theme.cardLight }}">
-        <text class="act-set-t" style="color: {{ theme.text }}">设置</text>
+        <text class="act-set-t" style="color: {{ theme.text }}">{{ t.home.setup }}</text>
       </div>
     </div>
 
@@ -119,9 +119,12 @@ import app from "@system.app"
 import storage from "@system.storage"
 const countdown = require("../../data/countdown.js")
 const theme = require("../../data/theme.js")
+const I18N = require("../../common/i18n.js")
 
 export default {
   private: {
+    // 自建词表：模板只取 t.home.xxx 字面量属性，不拼 key
+    t: I18N.getT("zh"),
     iconTheme: "dark",
     isLight: false,
     // 页脚版本号：读不到就空着，不写死字符串（写死会与 manifest 脱节）
@@ -150,6 +153,21 @@ export default {
   },
 
   onInit() {
+    // 语言：与其它页共用 cd_locale。单位文案（天/天前/天后）是 decorate 时算进 item 的，
+    // 所以偏好晚到时要重算一遍，否则会出现「页面标题变了、单位还是中文」。
+    var langSelf = this
+    storage.get({
+      key: "cd_locale",
+      success: function (v) {
+        langSelf.t = I18N.forPref(v || "auto")
+        if (langSelf.countdownList && langSelf.countdownList.length) {
+          langSelf.decorate(langSelf.countdownList)
+        }
+      },
+      fail: function () {
+        langSelf.t = I18N.forPref("auto")
+      }
+    })
     var self = this
     // 版本号：从 manifest 读，不在代码里写死
     app.getInfo({
@@ -249,18 +267,26 @@ export default {
       // 方向一律由单位承担，数字不带正负号（2026-11-02 统一）：
       //   未来 → 「N 天」；过去（已过期 / 正计时同款）→ 「N 天前」。
       // 符号方案已废弃，原因见模板里那段注释（hyphen 渲染成长横 + 「+」语义反了）。
+      // 单位词条化：中文「天/天前/天后」、英 days/ago/left、日 日/日前/日後。
+      // 三者都是**后缀**，所以「数字 + 单位」的拼接顺序跨语言不变，无需按语言分叉。
+      // 兜底：单测会把 decorate 从源码里 eval 出来跑，mock 的 this 没有 t；
+      // 真实运行也应容忍 t 尚未就绪（语言偏好异步读 storage）。缺了就落中文。
+      // 兜底用字面量，不引用模块级 I18N：单测会把本方法从源码 eval 出来跑，
+      // 那个作用域里没有 I18N；真实运行时则可能 t 尚未就绪（语言偏好异步读 storage）。
+      var H = (this.t && this.t.home) ||
+        { unitDay: "天", unitAgo: "天前", unitFuture: "天后" }
       if (it.isToday) {
         it.numText = "0"
-        it.unitText = "天"
-        it.heroUnit = "天"
+        it.unitText = H.unitDay
+        it.heroUnit = H.unitDay
       } else if (done || isUp) {
         it.numText = String(Math.abs(d))
-        it.unitText = "天前"
-        it.heroUnit = "天前"
+        it.unitText = H.unitAgo
+        it.heroUnit = H.unitAgo
       } else {
         it.numText = String(n)
-        it.unitText = "天"
-        it.heroUnit = "天后"
+        it.unitText = H.unitDay
+        it.heroUnit = H.unitFuture
       }
 
       // 字号随字符数分三档（ev-six 全合法档位 44/30/28/24）：

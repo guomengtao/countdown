@@ -44,6 +44,19 @@
       "refresh": "更新",
       "clear": "消去",
       "unknown": "未検出"
+    },
+    "home": {
+      "title": "残り日数",
+      "ended": "終了",
+      "today": "今日",
+      "todayBig": "今日",
+      "emptyMain": "項目なし",
+      "emptySub": "下から追加",
+      "addBtn": "追加",
+      "setup": "設定",
+      "unitDay": "日",
+      "unitAgo": "日前",
+      "unitFuture": "日後"
     }
   }
 }
