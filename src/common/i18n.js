@@ -71,11 +71,13 @@ function getT(lang) {
   return DICT[lang === 'en' ? 'en' : 'zh']
 }
 
-// auto 跟随系统：系统非中文一律给英文（当前只有中英两份词表）
+// auto 跟随系统：系统非中文一律给英文；读不到系统语言时落中文（defaults 恒中文）
 function langFromPref(pref, sysLang) {
   if (pref === 'en') return 'en'
   if (pref === 'zh-CN') return 'zh'
-  return String(sysLang || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en'
+  const s = String(sysLang || '').toLowerCase()
+  if (!s) return 'zh'
+  return s.indexOf('zh') === 0 ? 'zh' : 'en'
 }
 
 module.exports = { DICT: DICT, getT: getT, langFromPref: langFromPref }
