@@ -25,6 +25,11 @@
       "warm": "Sand",
       "forest": "Moss",
       "amber": "Amber"
+    },
+    "nickname": {
+      "title": "Name",
+      "ph": "Name",
+      "save": "Save"
     }
   }
 }

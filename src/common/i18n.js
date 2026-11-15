@@ -35,6 +35,11 @@ const DICT = {
       warm: '暖阳米',
       forest: '墨绿护眼',
       amber: '琥珀金'
+    },
+    nickname: {
+      title: '设置昵称',
+      ph: '输入昵称',
+      save: '保存'
     }
   },
   en: {
@@ -63,6 +68,11 @@ const DICT = {
       warm: 'Sand',
       forest: 'Moss',
       amber: 'Amber'
+    },
+    nickname: {
+      title: 'Name',
+      ph: 'Name',
+      save: 'Save'
     }
   },
   ja: {
@@ -91,6 +101,11 @@ const DICT = {
       warm: 'サンド',
       forest: 'モス',
       amber: 'アンバー'
+    },
+    nickname: {
+      title: '名前',
+      ph: '名前',
+      save: '保存'
     }
   }
 }
@@ -114,4 +129,15 @@ function langFromPref(pref, sysLang) {
   return 'en'
 }
 
-module.exports = { DICT: DICT, getT: getT, langFromPref: langFromPref }
+// 各页统一入口：给偏好，返回该用的字典。页面只写一行 I18N.forPref(pref)
+function forPref(pref) {
+  let sysLang = ''
+  try {
+    const c = require('@system.configuration')
+    const loc = c.getLocale()
+    if (loc && loc.language) sysLang = String(loc.language)
+  } catch (e) {}
+  return getT(langFromPref(pref, sysLang))
+}
+
+module.exports = { DICT: DICT, getT: getT, langFromPref: langFromPref, forPref: forPref }

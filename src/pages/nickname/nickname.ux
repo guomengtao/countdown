@@ -24,17 +24,17 @@
     <div class="top">
       <div class="hd" onclick="goBack">
         <image class="hd-ic" src="/common/icons/chevron-left-light.png"></image>
-        <text class="hd-t">设置昵称</text>
+        <text class="hd-t">{{ t.nickname.title }}</text>
       </div>
     </div>
 
     <div class="disp">
       <text class="txt" if="{{ text.length }}">{{ text }}</text>
-      <text class="ph" if="{{ !text.length }}">输入昵称</text>
+      <text class="ph" if="{{ !text.length }}">{{ t.nickname.ph }}</text>
     </div>
 
     <div class="ok" onclick="save">
-      <text class="ok-t">保存</text>
+      <text class="ok-t">{{ t.nickname.save }}</text>
     </div>
 
     <!-- imeOn 初值 false：组件首帧挂载会失败，必须等页面壳渲染完再插入 -->
@@ -57,11 +57,14 @@
 <script>
 import router from '@system.router'
 import storage from '@system.storage'
+const I18N = require('../../common/i18n.js')
 
 export default {
   data: {
     text: '',
-    imeOn: false
+    imeOn: false,
+    // 自建词表：模板只取 t.nickname.xxx 字面量属性，不拼 key
+    t: I18N.getT('zh')
   },
 
   onInit() {
@@ -72,6 +75,16 @@ export default {
         if (d) self.text = d
       },
       fail: function () {}
+    })
+    // 语言：与设置页共用 cd_locale，auto 时跟随系统（I18N.forPref 内部处理）
+    storage.get({
+      key: 'cd_locale',
+      success: function (v) {
+        self.t = I18N.forPref(v || 'auto')
+      },
+      fail: function () {
+        self.t = I18N.forPref('auto')
+      }
     })
   },
 

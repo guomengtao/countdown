@@ -25,6 +25,11 @@
       "warm": "サンド",
       "forest": "モス",
       "amber": "アンバー"
+    },
+    "nickname": {
+      "title": "名前",
+      "ph": "名前",
+      "save": "保存"
     }
   }
 }

@@ -80,7 +80,11 @@ const ROWS = [
   ['诊断行', ['message.settings.diag', 'message.settings.open']],
   ['退出行', ['message.settings.exit', 'message.settings.close']],
   ['清空行', ['message.settings.clear']],
-  ['清空确认行', ['message.settings.clearConfirm']]
+  ['清空确认行', ['message.settings.clearConfirm']],
+  // 昵称页（2026-11-15 迁入）：三处都是居中单行、右侧无对齐对象，与页头同口径给 +1.0P
+  ['昵称页头', ['message.nickname.title'], 1.0],
+  ['昵称占位', ['message.nickname.ph'], 1.0],
+  ['保存按钮', ['message.nickname.save'], 1.0]
 ]
 
 if (!fs.existsSync(path.join(I18N_DIR, 'defaults.json'))) {
