@@ -1,0 +1,30 @@
+{
+  "message": {
+    "settings": {
+      "title": "設定",
+      "language": "言語",
+      "theme": "テーマ",
+      "nickname": "名前",
+      "unset": "未設定",
+      "diag": "診断",
+      "open": "オン",
+      "exit": "終了",
+      "close": "オフ",
+      "clear": "全消去",
+      "clearConfirm": "消去確認"
+    },
+    "theme": {
+      "classic": "ダーク",
+      "blue": "ブルー",
+      "green": "グリーン",
+      "red": "コーラル",
+      "dark": "ナイト",
+      "gray": "グレー",
+      "purple": "ムラサキ",
+      "light": "ホワイト",
+      "warm": "サンド",
+      "forest": "モス",
+      "amber": "アンバー"
+    }
+  }
+}

@@ -34,12 +34,12 @@ function keysOf(obj, prefix) {
   return out.sort()
 }
 
-console.log('\n1. zh / en key 集合一致')
-ok('两份词表 key 完全相同且非空', function () {
+console.log('\n1. zh / en / ja key 集合一致')
+ok('三份词表 key 完全相同且非空', function () {
   const zh = keysOf(I18N.DICT.zh)
-  const en = keysOf(I18N.DICT.en)
   assert.ok(zh.length > 0, 'zh 词表为空')
-  assert.deepStrictEqual(en, zh, 'en 与 zh 的 key 集合不一致')
+  assert.deepStrictEqual(keysOf(I18N.DICT.en), zh, 'en 与 zh 的 key 集合不一致')
+  assert.deepStrictEqual(keysOf(I18N.DICT.ja), zh, 'ja 与 zh 的 key 集合不一致')
 })
 
 console.log('\n2. getT 兜底')
@@ -51,18 +51,27 @@ ok("getT('zh') / getT('zh-CN') / getT(undefined) 均返回 zh", function () {
   assert.strictEqual(I18N.getT('zh-CN'), I18N.DICT.zh)
   assert.strictEqual(I18N.getT(undefined), I18N.DICT.zh)
 })
+ok("getT('ja-JP') 返回 ja（日语已接入）", function () {
+  assert.strictEqual(I18N.getT('ja-JP'), I18N.DICT.ja)
+  assert.strictEqual(I18N.getT('ja').settings.title, '設定')
+})
 
 console.log('\n3. langFromPref 解析')
 ok("显式偏好优先于系统语言", function () {
   assert.strictEqual(I18N.langFromPref('en', 'zh'), 'en')
   assert.strictEqual(I18N.langFromPref('zh-CN', 'en'), 'zh')
 })
-ok('auto 跟随系统：zh* → zh，其余 → en', function () {
+ok('auto 跟随系统：zh* → zh，ja* → ja，其余 → en', function () {
   assert.strictEqual(I18N.langFromPref('auto', 'zh'), 'zh')
   assert.strictEqual(I18N.langFromPref('auto', 'zh-CN'), 'zh')
   assert.strictEqual(I18N.langFromPref('auto', 'zh-Hans'), 'zh')
+  assert.strictEqual(I18N.langFromPref('auto', 'ja'), 'ja')
+  assert.strictEqual(I18N.langFromPref('auto', 'ja-JP'), 'ja')
   assert.strictEqual(I18N.langFromPref('auto', 'en'), 'en')
-  assert.strictEqual(I18N.langFromPref('auto', 'ja'), 'en')
+  assert.strictEqual(I18N.langFromPref('auto', 'ko'), 'en')
+})
+ok('显式日语偏好直接生效', function () {
+  assert.strictEqual(I18N.langFromPref('ja-JP', 'en'), 'ja')
 })
 ok('auto 且系统语言缺失时落中文（不空屏）', function () {
   assert.strictEqual(I18N.langFromPref('auto', undefined), 'zh')

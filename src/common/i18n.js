@@ -3,9 +3,10 @@
  *
  * 为什么不用框架 $t / configuration.setLocale：1050 与 1060 上 setLocale 均为静默 no-op
  * （pit-20261115-189 / -191），界面语言只跟系统走。要「点了就变」只能自己查表渲染。
+ * 完整流程见 docs/应用内语言切换-技术实现流程-20261115.md。
  *
  * 词条与 src/i18n/*.json 同源生成，不手抄；全量迁移完成后可删掉 i18n/*.json。
- * 宽度规则见总纲 §3.21 第 9 条：英文单词 ≤8 字母 @28px，行级译文总 P ≤ 原文总 P。
+ * 加语言 = DICT 加一个顶层键 + 页面 LOCALES 加一项，模板零改动。
  */
 const DICT = {
   zh: {
@@ -63,21 +64,54 @@ const DICT = {
       forest: 'Moss',
       amber: 'Amber'
     }
+  },
+  ja: {
+    settings: {
+      title: '設定',
+      language: '言語',
+      theme: 'テーマ',
+      nickname: '名前',
+      unset: '未設定',
+      diag: '診断',
+      open: 'オン',
+      exit: '終了',
+      close: 'オフ',
+      clear: '全消去',
+      clearConfirm: '消去確認'
+    },
+    theme: {
+      classic: 'ダーク',
+      blue: 'ブルー',
+      green: 'グリーン',
+      red: 'コーラル',
+      dark: 'ナイト',
+      gray: 'グレー',
+      purple: 'ムラサキ',
+      light: 'ホワイト',
+      warm: 'サンド',
+      forest: 'モス',
+      amber: 'アンバー'
+    }
   }
 }
 
-// 只按字面量取属性，模板侧绝不拼 key（动态 key 会让进程直接消失，pit-20261115-190）
+// 只按字面量取属性；模板侧绝不拼 key（动态 key 会崩，pit-20261115-190）
+// 入参兼容完整 locale（ja-JP / zh-CN / en-US），只取主语言段
 function getT(lang) {
-  return DICT[lang === 'en' ? 'en' : 'zh']
+  const k = String(lang || '').split('-')[0]
+  return DICT[k] || DICT.zh
 }
 
-// auto 跟随系统：系统非中文一律给英文；读不到系统语言时落中文（defaults 恒中文）
+// 偏好优先于系统语言；读不到系统语言时落中文（defaults 恒中文）
+// pref 同样是完整 locale（ja-JP / zh-CN），只取主语言段再查
 function langFromPref(pref, sysLang) {
-  if (pref === 'en') return 'en'
-  if (pref === 'zh-CN') return 'zh'
+  const p = String(pref || '').split('-')[0]
+  if (DICT[p]) return p
   const s = String(sysLang || '').toLowerCase()
   if (!s) return 'zh'
-  return s.indexOf('zh') === 0 ? 'zh' : 'en'
+  if (s.indexOf('zh') === 0) return 'zh'
+  if (s.indexOf('ja') === 0) return 'ja'
+  return 'en'
 }
 
 module.exports = { DICT: DICT, getT: getT, langFromPref: langFromPref }

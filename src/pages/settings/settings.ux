@@ -91,7 +91,7 @@ let armTimer = null
  * 存完整 locale 字符串（auto / zh-CN / en），不用布尔「是否英文」——
  * 加日语、繁体时只扩数组，不改调用方，避免返工。 */
 const LOCALE_KEY = 'cd_locale'
-const LOCALES = ['auto', 'zh-CN', 'en']
+const LOCALES = ['auto', 'zh-CN', 'en', 'ja-JP']
 
 export default {
   data: {
@@ -187,6 +187,7 @@ export default {
   labelOf(v) {
     if (v === 'zh-CN') return '中文'
     if (v === 'en') return 'EN'
+    if (v === 'ja-JP') return '日本語'
     return 'Auto'
   },
 
