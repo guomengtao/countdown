@@ -17,7 +17,7 @@
     <div class="top">
       <div class="hd" onclick="goBack" style="background-color: {{ theme.cardLight }}">
         <image class="hd-ic" src="/common/icons/chevron-left-light.png"></image>
-        <text class="hd-t" style="color: {{ theme.text }}">{{ $t('message.settings.title') }}</text>
+        <text class="hd-t" style="color: {{ theme.text }}">{{ t.settings.title }}</text>
       </div>
     </div>
 
@@ -25,29 +25,21 @@
       <!-- 主题：单值行。去掉左侧「主题」标签是为了腾出 2P——双列时每列只剩 2.2P，
            连 3 字中文主题名都放不下。点击仍进主题页，语义由「当前值可点」承担。 -->
       <div class="item" style="background-color: {{ theme.card }}" onclick="goTheme">
-        <text class="it-k" if="{{ themeKey === 'classic' }}" style="color: {{ theme.text }}">{{ $t('message.theme.classic') }}</text>
-        <text class="it-k" if="{{ themeKey === 'blue' }}" style="color: {{ theme.text }}">{{ $t('message.theme.blue') }}</text>
-        <text class="it-k" if="{{ themeKey === 'green' }}" style="color: {{ theme.text }}">{{ $t('message.theme.green') }}</text>
-        <text class="it-k" if="{{ themeKey === 'red' }}" style="color: {{ theme.text }}">{{ $t('message.theme.red') }}</text>
-        <text class="it-k" if="{{ themeKey === 'dark' }}" style="color: {{ theme.text }}">{{ $t('message.theme.dark') }}</text>
-        <text class="it-k" if="{{ themeKey === 'gray' }}" style="color: {{ theme.text }}">{{ $t('message.theme.gray') }}</text>
-        <text class="it-k" if="{{ themeKey === 'purple' }}" style="color: {{ theme.text }}">{{ $t('message.theme.purple') }}</text>
-        <text class="it-k" if="{{ themeKey === 'light' }}" style="color: {{ theme.text }}">{{ $t('message.theme.light') }}</text>
-        <text class="it-k" if="{{ themeKey === 'warm' }}" style="color: {{ theme.text }}">{{ $t('message.theme.warm') }}</text>
-        <text class="it-k" if="{{ themeKey === 'forest' }}" style="color: {{ theme.text }}">{{ $t('message.theme.forest') }}</text>
-        <text class="it-k" if="{{ themeKey === 'amber' }}" style="color: {{ theme.text }}">{{ $t('message.theme.amber') }}</text>
+        <!-- 2026-11-15：11 条 $t 字面量分支合并成一条。主题名由 loadTheme 在脚本里查字典后
+             作为 themeName 字符串下发，模板侧不再拼 key（动态 key 会崩，pit-20261115-190）。 -->
+        <text class="it-k" style="color: {{ theme.text }}">{{ themeName }}</text>
       </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="goNick">
-        <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.nickname') }}</text>
+        <text class="it-k" style="color: {{ theme.text }}">{{ t.settings.nickname }}</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ nick }}">{{ nick }}</text>
-        <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ !nick }}">{{ $t('message.settings.unset') }}</text>
+        <text class="it-v" style="color: {{ theme.textSecondary }}" if="{{ !nick }}">{{ t.settings.unset }}</text>
       </div>
       <!-- 语言：点一下按 自动 → 中文 → EN → 自动 循环。
            存完整 locale 字符串（不是布尔），将来加日语只需扩 LOCALES 数组，
            不需要改页面结构——见根仓 docs/手环多语言资源结构与日语扩展规划-20261114.md。
            值的可读文案固定为 Auto / 中文 / EN（三种界面语言下都不超 4.44P）。 -->
       <div class="item" style="background-color: {{ theme.card }}" onclick="cycleLocale">
-        <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.language') }}</text>
+        <text class="it-k" style="color: {{ theme.text }}">{{ t.settings.language }}</text>
         <text class="it-v" style="color: {{ theme.textSecondary }}">{{ localeLabel }}</text>
       </div>
       <!-- 2026-11-02 发布前清理：删掉「科目」与「手势」两项。
@@ -55,12 +47,12 @@
            「手势」跳 pages/index（701 行旧首页，根节点自绘 touch，正是会闪退的写法）。
            倒数日没有「科目」概念，手势也不该把用户丢进一个旧页面，两项一并下掉。 -->
       <div class="item" style="background-color: {{ theme.card }}" onclick="goDiag">
-        <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.diag') }}</text>
-        <text class="it-v" style="color: {{ theme.textSecondary }}">{{ $t('message.settings.open') }}</text>
+        <text class="it-k" style="color: {{ theme.text }}">{{ t.settings.diag }}</text>
+        <text class="it-v" style="color: {{ theme.textSecondary }}">{{ t.settings.open }}</text>
       </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="quitApp">
-        <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.exit') }}</text>
-        <text class="it-v" style="color: {{ theme.textSecondary }}">{{ $t('message.settings.close') }}</text>
+        <text class="it-k" style="color: {{ theme.text }}">{{ t.settings.exit }}</text>
+        <text class="it-v" style="color: {{ theme.textSecondary }}">{{ t.settings.close }}</text>
       </div>
 
       <!-- 清空数据放最后一项（2026-11-02 用户要求）：
@@ -68,8 +60,8 @@
            也符合「越靠下越不可逆」的列表惯例。仍带 3 秒二次确认。
            2026-11-14：原来的三元 + 中文硬编码改成两个 if + $t，避免模板里同时出现表达式与翻译调用。 -->
       <div class="item" style="background-color: {{ theme.card }}" onclick="clearAll">
-        <text class="it-k" if="{{ clearConfirm }}" style="color: {{ theme.deleteText }}">{{ $t('message.settings.clearConfirm') }}</text>
-        <text class="it-k" if="{{ !clearConfirm }}" style="color: {{ theme.text }}">{{ $t('message.settings.clear') }}</text>
+        <text class="it-k" if="{{ clearConfirm }}" style="color: {{ theme.deleteText }}">{{ t.settings.clearConfirm }}</text>
+        <text class="it-k" if="{{ !clearConfirm }}" style="color: {{ theme.text }}">{{ t.settings.clear }}</text>
       </div>
     </div>
 
@@ -84,6 +76,7 @@ import app from '@system.app'
 import theme from '../../data/theme.js'
 import countdown from '../../data/countdown.js'
 const probe = require('../../common/probe.js')
+const I18N = require('../../common/i18n.js')
 
 /* 「清空数据」的三秒确认窗口用**模块级变量**记，不用 this / data。
  *
@@ -108,7 +101,11 @@ export default {
     clearConfirm: false,
     theme: {},
     locale: 'auto',
-    localeLabel: 'Auto'
+    localeLabel: 'Auto',
+    // 自建词表：模板只用 t.settings.xxx 取字面量属性，不拼 key
+    t: I18N.getT('zh'),
+    // 主题名在脚本里查好后下发，模板单值渲染（替代原 11 条 if 分支）
+    themeName: ''
   },
 
   onInit() {
@@ -161,13 +158,15 @@ export default {
 
   loadTheme() {
     const self = this
-    // theme.getTheme 回调第二参数本来就是主题 key（如 classic），无需改数据层。
-    // 主题名**必须在模板里**走 $t('message.theme.<key>')：
-    // 脚本作用域下 this.$t 取不到词条（返回原 key），只能兜底成中文名，
-    // 结果就是英文界面里主题名仍是中文（2026-11-14 装机实测）。
+    // theme.getTheme 回调第二参数就是主题 key（如 classic）。
+    // 2026-11-15 改自建 t：主题名在**脚本**里从自造字典查（I18N.DICT[lang].theme[key]），
+    // 不再依赖 this.$t（脚本作用域取不到词条，pit-20261115-190），也不用模板拼 key。
     theme.getTheme(function (t, key) {
       self.theme = t
-      self.themeKey = key || 'classic'
+      const k = key || 'classic'
+      self.themeKey = k
+      const names = self.t && self.t.theme
+      self.themeName = (names && names[k]) || t.name || k
     })
   },
 
@@ -199,12 +198,30 @@ export default {
         const val = LOCALES.indexOf(v) >= 0 ? v : 'auto'
         self.locale = val
         self.localeLabel = self.labelOf(val)
+        self.applyLang(val)
       },
       fail: function () {
         self.locale = 'auto'
         self.localeLabel = 'Auto'
+        self.applyLang('auto')
       }
     })
+  },
+
+  // 自建 t 的落地点：算出目标语言 → 换字典 → 主题名重算。
+  // 只改 data，模板自动重算，**不需要** router.replace 重建页面。
+  applyLang(pref) {
+    let sysLang = 'zh'
+    try {
+      const configuration = require('@system.configuration')
+      const loc = configuration.getLocale()
+      if (loc && loc.language) sysLang = String(loc.language)
+    } catch (e) {}
+    const lang = I18N.langFromPref(pref, sysLang)
+    this.t = I18N.getT(lang)
+    const names = this.t.theme
+    this.themeName = (names && names[this.themeKey]) || this.themeName
+    probe.mark('locale', 'lang', pref + '>' + lang)
   },
 
   cycleLocale() {
@@ -213,18 +230,9 @@ export default {
     const next = LOCALES[(i + 1) % LOCALES.length]
     this.locale = next
     this.localeLabel = this.labelOf(next)
-    storage.set({
-      key: LOCALE_KEY,
-      value: next,
-      complete: function () {
-        self.applyLocale(next)
-        // 官方未明确 setLocale 后模板是否自动重算，稳妥做法是重建本页。
-        // 重建后 onInit 会读 storage 拿到新值，语言不丢。
-        setTimeout(function () {
-          router.replace({ uri: '/pages/settings' })
-        }, 150)
-      }
-    })
+    // 先换文案（立即生效，不等 storage 回调），再落盘
+    this.applyLang(next)
+    storage.set({ key: LOCALE_KEY, value: next })
   },
 
   applyLocale(v) {
