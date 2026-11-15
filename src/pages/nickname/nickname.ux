@@ -45,6 +45,7 @@
         maxlength="8"
         vibratemode="short"
         screentype="rect"
+        initlang="{{ imeLang }}"
         dictionarypath="/components/InputMethod/assets/dictionary/"
         oncomplete="onChar"
         ondelete="onDel"
@@ -63,6 +64,8 @@ export default {
   data: {
     text: '',
     imeOn: false,
+    // 键盘初始语言 cn/en/jp：跟界面语言一致（日语界面直接进假名候选）
+    imeLang: 'cn',
     // 自建词表：模板只取 t.nickname.xxx 字面量属性，不拼 key
     t: I18N.getT('zh')
   },
@@ -77,13 +80,16 @@ export default {
       fail: function () {}
     })
     // 语言：与设置页共用 cd_locale，auto 时跟随系统（I18N.forPref 内部处理）
+    // 同一个 pref 同时决定界面词表与键盘初始语言，保证两者不会错位
     storage.get({
       key: 'cd_locale',
       success: function (v) {
         self.t = I18N.forPref(v || 'auto')
+        self.imeLang = I18N.imeLangOf(v || 'auto')
       },
       fail: function () {
         self.t = I18N.forPref('auto')
+        self.imeLang = I18N.imeLangOf('auto')
       }
     })
   },

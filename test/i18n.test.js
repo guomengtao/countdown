@@ -96,4 +96,28 @@ ok('settings 与 theme 的所有英文值均满足', function () {
   assert.deepStrictEqual(bad, [], '超长英文单词：\n    ' + bad.join('\n    '))
 })
 
+console.log('\n5. imeLangOf：界面语言 → 键盘语言（cn/en/jp）')
+ok('zh/en/ja 三语映射', function () {
+  assert.strictEqual(I18N.imeLangOf('zh-CN'), 'cn')
+  assert.strictEqual(I18N.imeLangOf('en'), 'en')
+  assert.strictEqual(I18N.imeLangOf('ja-JP'), 'jp')
+})
+ok('auto 跟随系统语言，不能落空', function () {
+  const cases = [
+    ['zh', 'cn'],
+    ['zh-CN', 'cn'],
+    ['en', 'en'],
+    ['ja', 'jp'],
+    ['en-US', 'en']
+  ]
+  cases.forEach(function (c) {
+    assert.strictEqual(I18N.imeLangOf(c[0]), c[1], c[0] + ' → ' + c[1])
+  })
+})
+ok('未知/空偏好不返回 undefined（兜底 cn）', function () {
+  assert.strictEqual(I18N.imeLangOf(''), 'cn')
+  assert.strictEqual(I18N.imeLangOf(undefined), 'cn')
+  assert.strictEqual(I18N.imeLangOf('fr'), 'cn')
+})
+
 console.log('\n全部通过 ' + pass + ' 项\n')

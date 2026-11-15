@@ -360,6 +360,12 @@ export default {
     screentype: {
       default: "circle",
     },
+    // 初始键盘语言 cn / en / jp。
+    // 组件原本把 data.lang 写死 "cn"，导致日语界面下仍先弹中文拼音候选。
+    // 这里只做「初始值」：用户仍可点左上角 lang 键 cn→en→jp 循环覆盖。
+    initlang: {
+      default: "cn",
+    },
   },
   data: {
     cval: "",
@@ -435,6 +441,10 @@ export default {
     Object.defineProperty(this, "_dictionary", {
       value: createDictionaryLoader(this.dictionarypath), configurable: true
     });
+    // 初始键盘语言：按宿主页传入的 initlang 设定，未传时保持原有中文拼音默认。
+    if (this.initlang === "en" || this.initlang === "jp") {
+      this.lang = this.initlang;
+    }
     if (this.maxlength) {
       const tempCvalList = [];
       for (let i = 0; i < this.maxlength; i++) {
@@ -449,6 +459,7 @@ export default {
     this.$watch("hide", "watchHidePropsChange");
     this.$watch("maxlength", "watchMaxLengthPropsChange");
     this.$watch("keyboardtype", "watchKeyboardTypePropsChange");
+    this.$watch("initlang", "watchInitLangPropsChange");
   },
   onDestroy() {
     this._dictionary.destroy();
@@ -749,6 +760,16 @@ export default {
   watchKeyboardTypePropsChange(newV, oldV) {
     if (newV === "T9" && this.lang === "jp") {
       this.lang = "cn";
+      this.cval = "";
+      this.clearWaiting();
+      this.resetResultList();
+    }
+  },
+  // 宿主页的语言偏好是异步读 storage 得到的，可能晚于键盘挂载。
+  // 晚到时不重建键盘，只把初始语言纠正过来；用户点过 lang 键后 initlang 不再变化，不会打架。
+  watchInitLangPropsChange(newV, oldV) {
+    if ((newV === "en" || newV === "jp") && newV !== this.lang) {
+      this.lang = newV;
       this.cval = "";
       this.clearWaiting();
       this.resetResultList();

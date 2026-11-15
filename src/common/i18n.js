@@ -129,15 +129,36 @@ function langFromPref(pref, sysLang) {
   return 'en'
 }
 
-// 各页统一入口：给偏好，返回该用的字典。页面只写一行 I18N.forPref(pref)
-function forPref(pref) {
+// 先按偏好解析出主语言段（zh / en / ja），一次取系统语言供多处复用
+function resolveLang(pref) {
   let sysLang = ''
   try {
     const c = require('@system.configuration')
     const loc = c.getLocale()
     if (loc && loc.language) sysLang = String(loc.language)
   } catch (e) {}
-  return getT(langFromPref(pref, sysLang))
+  return langFromPref(pref, sysLang)
 }
 
-module.exports = { DICT: DICT, getT: getT, langFromPref: langFromPref, forPref: forPref }
+// 各页统一入口：给偏好，返回该用的字典。页面只写一行 I18N.forPref(pref)
+function forPref(pref) {
+  return getT(resolveLang(pref))
+}
+
+// 自建 input-method 组件的语言键：cn / en / jp（组件内既有三态）
+// 注意映射不是恒等——界面 'zh' 对应键盘 'cn'、界面 'ja' 对应键盘 'jp'。
+function imeLangOf(pref) {
+  const l = resolveLang(pref)
+  if (l === 'ja') return 'jp'
+  if (l === 'en') return 'en'
+  return 'cn'
+}
+
+module.exports = {
+  DICT: DICT,
+  getT: getT,
+  langFromPref: langFromPref,
+  resolveLang: resolveLang,
+  forPref: forPref,
+  imeLangOf: imeLangOf
+}
