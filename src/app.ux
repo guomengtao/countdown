@@ -7,19 +7,32 @@ const storage = require('@system.storage')
 const LOCALE_KEY = 'cd_locale'
 const LOCALES = ['auto', 'zh-CN', 'en']
 
-function applyLocale(v) {
+/* setLocale 前后各取一次 getLocale 做对比，是判断「API 无效」还是「资源/匹配错」的唯一可靠口径：
+ * before === after ⇒ API 层 no-op；after 变了但界面没变 ⇒ 资源或匹配层的问题。
+ * 静默 no-op 不会抛异常，光看 try/catch 抓不到任何东西（pit-20261115-189 / -191）。 */
+function langOf(loc) {
+  if (!loc) return 'nil'
+  return [loc.language, loc.countryOrRegion].filter(function (x) { return !!x }).join('-') || 'nil'
+}
+
+function applyLocale(v, tag) {
   try {
     const configuration = require('@system.configuration')
+    const before = langOf(configuration.getLocale())
     if (v === 'auto') {
       const sys = configuration.getLocale()
       if (sys && sys.language) {
         configuration.setLocale({ language: sys.language, countryOrRegion: sys.countryOrRegion || '' })
       }
-      return
+    } else {
+      const parts = v.split('-')
+      configuration.setLocale({ language: parts[0], countryOrRegion: parts[1] || '' })
     }
-    const parts = v.split('-')
-    configuration.setLocale({ language: parts[0], countryOrRegion: parts[1] || '' })
-  } catch (e) {}
+    const after = langOf(configuration.getLocale())
+    probe.mark('locale', tag, v + ' ' + before + '>' + after)
+  } catch (e) {
+    probe.mark('locale', tag, v + ' throw ' + String(e && e.message ? e.message : e))
+  }
 }
 
 export default {
@@ -27,11 +40,12 @@ export default {
     probe.load()
     // 多语言：官方明确「应用重新进入时语言环境会重置为系统语言」，
     // 所以每次冷启动都要按用户存下的偏好重新 setLocale，否则手动选的语言一次重启就丢。
-    // configuration 官方标 1060+，本工程 minPlatformVersion 1050；取不到时静默跳过，不影响启动。
+    // configuration 官方标 1060+。本工程 minPlatformVersion 已从 1050 抬到 1060 做验证，
+    // 探针会记下 setLocale 前后 getLocale 的实际变化，落盘后可判读是否真的生效。
     storage.get({
       key: LOCALE_KEY,
       success: function (v) {
-        if (LOCALES.indexOf(v) >= 0 && v !== 'auto') applyLocale(v)
+        if (LOCALES.indexOf(v) >= 0 && v !== 'auto') applyLocale(v, 'boot')
       }
     })
     // 多语言试点：把框架当前 locale 记进探针，装机后可直接判读系统语言匹配是否生效。

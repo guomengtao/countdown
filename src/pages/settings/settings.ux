@@ -83,6 +83,7 @@ import storage from '@system.storage'
 import app from '@system.app'
 import theme from '../../data/theme.js'
 import countdown from '../../data/countdown.js'
+const probe = require('../../common/probe.js')
 
 /* 「清空数据」的三秒确认窗口用**模块级变量**记，不用 this / data。
  *
@@ -229,18 +230,28 @@ export default {
   applyLocale(v) {
     try {
       const configuration = require('@system.configuration')
+      const before = this.langOf(configuration.getLocale())
       if (v === 'auto') {
         const sys = configuration.getLocale()
         if (sys && sys.language) {
           configuration.setLocale({ language: sys.language, countryOrRegion: sys.countryOrRegion || '' })
         }
-        return
+      } else {
+        const parts = v.split('-')
+        configuration.setLocale({ language: parts[0], countryOrRegion: parts[1] || '' })
       }
-      const parts = v.split('-')
-      configuration.setLocale({ language: parts[0], countryOrRegion: parts[1] || '' })
+      // 静默 no-op 不抛异常：只有前后对比才能判读（pit-20261115-189 / -191）
+      const after = this.langOf(configuration.getLocale())
+      probe.mark('locale', 'tap', v + ' ' + before + '>' + after)
     } catch (e) {
-      // 平台 <1060 或未开放 configuration 时静默降级：仍跟随系统语言，不影响其他功能。
+      // 平台不开放 configuration 时降级：仍跟随系统语言，不影响其他功能。
+      probe.mark('locale', 'tap', v + ' throw ' + String(e && e.message ? e.message : e))
     }
+  },
+
+  langOf(loc) {
+    if (!loc) return 'nil'
+    return [loc.language, loc.countryOrRegion].filter(function (x) { return !!x }).join('-') || 'nil'
   },
 
   goBack() {
