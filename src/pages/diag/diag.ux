@@ -18,6 +18,11 @@
     <text class="k">词库</text>
     <text class="v">{{ dict }}</text>
 
+    <text class="k">语言</text>
+    <!-- 显示 setLocale 前后 getLocale 的对比（形如 zh-CN>en）。
+         静默 no-op 不抛异常，只有这个对比能区分「API 无效」和「资源匹配错」。 -->
+    <text class="v">{{ loc }}</text>
+
     <text class="k">测试结果</text>
     <!-- 原来写成「exp-A → 键盘可用 · 已敲过」，三个问题：
          1. → 和 · 都是 ev-six 明令禁止的符号，各白吃 0.6~1.1 个字位
@@ -137,6 +142,7 @@ export default {
     screen: '-',
     osVer: '-',
     dict: '未探测',
+    loc: '-',
     rows: []
   },
 
@@ -159,7 +165,25 @@ export default {
   onShow() {
     this.readDevice()
     this.readDict()
+    this.readLocale()
     this.renderRows()
+  },
+
+  // setLocale 前后 getLocale 的对比，取最近一条：形如 "zh-CN>en"。
+  // 这里只显示对比结果，不显示 v/tag —— 168px 一行装不下三个字段。
+  readLocale() {
+    try {
+      const list = probe.raw()
+      for (let i = list.length - 1; i >= 0; i--) {
+        if (list[i].p !== 'locale') continue
+        const parts = String(list[i].x || '').split(' ')
+        this.loc = parts[1] || parts[0] || '-'
+        return
+      }
+      this.loc = '-'
+    } catch (e) {
+      this.loc = '读失败'
+    }
   },
 
   readDevice() {
@@ -214,6 +238,7 @@ export default {
   refresh() {
     this.readDevice()
     this.readDict()
+    this.readLocale()
     this.renderRows()
   },
 
