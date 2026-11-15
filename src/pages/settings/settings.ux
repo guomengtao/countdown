@@ -25,7 +25,17 @@
       <!-- 主题：单值行。去掉左侧「主题」标签是为了腾出 2P——双列时每列只剩 2.2P，
            连 3 字中文主题名都放不下。点击仍进主题页，语义由「当前值可点」承担。 -->
       <div class="item" style="background-color: {{ theme.card }}" onclick="goTheme">
-        <text class="it-k" style="color: {{ theme.text }}">{{ themeName }}</text>
+        <text class="it-k" if="{{ themeKey === 'classic' }}" style="color: {{ theme.text }}">{{ $t('message.theme.classic') }}</text>
+        <text class="it-k" if="{{ themeKey === 'blue' }}" style="color: {{ theme.text }}">{{ $t('message.theme.blue') }}</text>
+        <text class="it-k" if="{{ themeKey === 'green' }}" style="color: {{ theme.text }}">{{ $t('message.theme.green') }}</text>
+        <text class="it-k" if="{{ themeKey === 'red' }}" style="color: {{ theme.text }}">{{ $t('message.theme.red') }}</text>
+        <text class="it-k" if="{{ themeKey === 'dark' }}" style="color: {{ theme.text }}">{{ $t('message.theme.dark') }}</text>
+        <text class="it-k" if="{{ themeKey === 'gray' }}" style="color: {{ theme.text }}">{{ $t('message.theme.gray') }}</text>
+        <text class="it-k" if="{{ themeKey === 'purple' }}" style="color: {{ theme.text }}">{{ $t('message.theme.purple') }}</text>
+        <text class="it-k" if="{{ themeKey === 'light' }}" style="color: {{ theme.text }}">{{ $t('message.theme.light') }}</text>
+        <text class="it-k" if="{{ themeKey === 'warm' }}" style="color: {{ theme.text }}">{{ $t('message.theme.warm') }}</text>
+        <text class="it-k" if="{{ themeKey === 'forest' }}" style="color: {{ theme.text }}">{{ $t('message.theme.forest') }}</text>
+        <text class="it-k" if="{{ themeKey === 'amber' }}" style="color: {{ theme.text }}">{{ $t('message.theme.amber') }}</text>
       </div>
       <div class="item" style="background-color: {{ theme.card }}" onclick="goNick">
         <text class="it-k" style="color: {{ theme.text }}">{{ $t('message.settings.nickname') }}</text>
@@ -93,7 +103,7 @@ export default {
   data: {
     ver: '0.0.1',
     nick: '',
-    themeName: '经典黑',
+    themeKey: 'classic',
     clearConfirm: false,
     theme: {},
     locale: 'auto',
@@ -151,15 +161,12 @@ export default {
   loadTheme() {
     const self = this
     // theme.getTheme 回调第二参数本来就是主题 key（如 classic），无需改数据层。
-    // 主题名走 $t('message.theme.<key>')；低版本不支持 $t 时兜底回中文 t.name，保证中文零回归。
+    // 主题名**必须在模板里**走 $t('message.theme.<key>')：
+    // 脚本作用域下 this.$t 取不到词条（返回原 key），只能兜底成中文名，
+    // 结果就是英文界面里主题名仍是中文（2026-11-14 装机实测）。
     theme.getTheme(function (t, key) {
       self.theme = t
-      let translated = ''
-      try {
-        translated = self.$t('message.theme.' + (key || 'classic'))
-      } catch (e) {}
-      if (translated && translated.indexOf('message.theme.') === 0) translated = ''
-      self.themeName = translated || t.name
+      self.themeKey = key || 'classic'
     })
   },
 
